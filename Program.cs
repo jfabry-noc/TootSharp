@@ -2,6 +2,11 @@
 {
     internal class Program
     {
+        public const string Redirect = "urn:ietf:wg:oauth:2.0:oob";
+        public const string Scopes = "read write follow";
+        public const string AppName = "TootSharp";
+        public const string Website = "https://github.com/jfabry-noc/TootSharp";
+
         static async Task Main(string[] args)
         {
             var io = new IOController();
@@ -12,7 +17,7 @@
             if(configController.Instance is null || configController.AuthCode is null || configController.ClientId is null || configController.ClientSecret is null)
             {
                 var instance = io.AskForInstance();
-                var appRegResponse = await MastoClient.CreateApplication(instance, "TootSharp", "urn:ietf:wg:oauth:2.0:oob", "read write follow", "https://github.com/jfabry-noc");
+                var appRegResponse = await MastoClient.CreateApplication(instance, AppName, Redirect, Scopes, Website);
 
                 configController.ParseAppRegistration(appRegResponse);
 
