@@ -23,7 +23,12 @@ namespace TootSharp
                 Environment.Exit(1);
             }
 
-            return instance;
+            if(instance.ToLower().StartsWith("https://"))
+            {
+                instance = instance.Substring(8);
+            }
+
+            return instance.ToLower();
         }
 
         public string GetAuthCode(string instance, string clientId)
@@ -42,6 +47,5 @@ namespace TootSharp
             }
             return code;
         }
-
     }
 }

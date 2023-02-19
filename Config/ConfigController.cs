@@ -6,7 +6,9 @@ namespace TootSharp
     {
         internal string? ConfigPath { get; set; }
         
-        internal string ClientId = "pmRQFWQ8weQ4MyPcz9CIoZR5sXbe58JLbt9PvbC99Do";
+        internal string? ClientId {get; set; }
+
+        internal string? ClientSecret {get; set; }
 
         internal string? AuthCode { get; set; }
 
@@ -15,10 +17,17 @@ namespace TootSharp
         public ConfigController()
         {
             DetermineConfigPath();
+            LoadConfig();
+        }
+
+        private void LoadConfig()
+        {
             var config = GetConfigContent();
-            if (config != null)
+            if(config != null)
             {
                 this.Instance = config.Instance;
+                this.ClientId = config.ClientId;
+                this.ClientSecret = config.ClientSecret;
                 this.AuthCode = config.AuthCode;
             }
         }
@@ -73,10 +82,70 @@ namespace TootSharp
             var config = new UserConfig
             {
                 Instance = instance,
-                AuthCode = authCode
+                AuthCode = authCode,
+                ClientId = this.ClientId,
+                ClientSecret = this.ClientSecret
             };
             var configJson = JsonSerializer.Serialize(config);
-            System.IO.File.WriteAllText(ConfigPath, configJson);
+
+            System.IO.FileInfo configFileInfo = new System.IO.FileInfo(ConfigPath);
+            if(configFileInfo.Directory is not null)
+            {
+                configFileInfo.Directory.Create();
+                System.IO.File.WriteAllText(ConfigPath, configJson);
+            }
+            else
+            {
+                throw new System.Exception("Could not determine config directory.");
+            }
+
+            LoadConfig();
+        }
+
+        public bool ValidateConfig()
+        {
+            if (Instance == null || AuthCode == null)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        public void DeleteConfig()
+        {
+            if (ConfigPath == null)
+            {
+                DetermineConfigPath();
+            }
+
+            if(ConfigPath == null)
+            {
+                throw new System.Exception("Could not determine config path. OS support may not be implemented.");
+            }
+
+            System.IO.File.Delete(ConfigPath);
+        }
+
+        public void ParseAppRegistration(string? rawResp)
+        {
+            if(rawResp is null)
+            {
+                throw new System.Exception("Could not parse app registration response.");
+            }
+
+            var appReg = JsonSerializer.Deserialize<AppRegistration>(rawResp);
+            if(appReg is null)
+            {
+                throw new System.Exception("Could not parse app registration response.");
+            }
+            this.ClientId = appReg.ClientId;
+            this.ClientSecret = appReg.ClientSecret;
+
+            if(this.ClientId is null || this.ClientSecret is null)
+            {
+                throw new System.Exception("Could not parse app registration response.");
+            }
         }
     }
 }
