@@ -14,7 +14,9 @@
 
             var configController = new ConfigController();
 
-            if(configController.Instance is null || configController.AuthCode is null || configController.ClientId is null || configController.ClientSecret is null)
+            if(configController.Instance is null || configController.AuthCode is null ||
+                configController.ClientId is null || configController.ClientSecret is null
+                || configController.AccessToken is null)
             {
                 var instance = io.AskForInstance();
                 var appRegResponse = await MastoClient.CreateApplication(instance, AppName, Redirect, Scopes, Website);
@@ -28,6 +30,16 @@
                 }
 
                 var authCode = io.GetAuthCode(instance, configController.ClientId);
+
+                var tokenResponse = await MastoClient.GetAccessToken(
+                    configController.ClientId,
+                    configController.ClientSecret,
+                    authCode,
+                    Redirect,
+                    Scopes,
+                    instance);
+
+                configController.ParseAccessTokenResponse(tokenResponse);
                 configController.WriteConfig(instance, authCode);
             }
 

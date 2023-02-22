@@ -5,7 +5,7 @@ namespace TootSharp
     public class ConfigController
     {
         internal string? ConfigPath { get; set; }
-        
+
         internal string? ClientId {get; set; }
 
         internal string? ClientSecret {get; set; }
@@ -13,6 +13,8 @@ namespace TootSharp
         internal string? AuthCode { get; set; }
 
         internal string? Instance { get; set; }
+
+        internal string? AccessToken { get; set; }
 
         public ConfigController()
         {
@@ -29,6 +31,7 @@ namespace TootSharp
                 this.ClientId = config.ClientId;
                 this.ClientSecret = config.ClientSecret;
                 this.AuthCode = config.AuthCode;
+                this.AccessToken = config.AccessToken;
             }
         }
 
@@ -83,6 +86,7 @@ namespace TootSharp
             {
                 Instance = instance,
                 AuthCode = authCode,
+                AccessToken = this.AccessToken,
                 ClientId = this.ClientId,
                 ClientSecret = this.ClientSecret
             };
@@ -145,6 +149,25 @@ namespace TootSharp
             if(this.ClientId is null || this.ClientSecret is null)
             {
                 throw new System.Exception("Could not parse app registration response.");
+            }
+        }
+
+        public void ParseAccessTokenResponse(string? rawResp)
+        {
+            if(rawResp is null)
+            {
+                throw new System.Exception("Could not parse access token response.");
+            }
+            var token = JsonSerializer.Deserialize<AccessToken>(rawResp);
+            if(token is null)
+            {
+                throw new System.Exception("Could not parse access token response.");
+            }
+
+            this.AccessToken = token.AccessTokenValue;
+            if(this.AccessToken is null)
+            {
+                throw new System.Exception("Could not parse access token response.");
             }
         }
     }
