@@ -43,11 +43,15 @@
                 configController.WriteConfig(instance, authCode);
             }
 
-            if(! configController.ValidateConfig())
+            if(configController.Instance is null || configController.AccessToken is null)
             {
                 Console.WriteLine("Config is invalid. Exiting.");
                 Environment.Exit(1);
             }
+
+            var client = new MastoClient(configController.Instance, configController.AccessToken);
+
+            io.MainLoop(client);
         }
     }
 

@@ -106,16 +106,6 @@ namespace TootSharp
             LoadConfig();
         }
 
-        public bool ValidateConfig()
-        {
-            if (Instance == null || AuthCode == null)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
         public void DeleteConfig()
         {
             if (ConfigPath == null)

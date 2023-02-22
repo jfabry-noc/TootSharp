@@ -10,7 +10,7 @@ This is a TUI (Terminal User Interface) client for interactive with Mastodon, li
 
 - Posting new text-based content.
 - Viewing home, local, and federated timelines with caching.
-- Favoriting boosting, and replying to content from said timelines.
+- Favoriting, boosting, and replying to content from said timelines.
 - Viewing notifications.
 
 ### Potential Goals

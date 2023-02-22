@@ -47,5 +47,47 @@ namespace TootSharp
             }
             return code;
         }
+
+        public void MainLoop(MastoClient client)
+        {
+            var keyInfo = new ConsoleKeyInfo();
+            do
+            {
+                Console.WriteLine("Enter a command key. H for help.");
+                while(!Console.KeyAvailable)
+                {
+                    Thread.Sleep(100);
+                }
+                keyInfo = Console.ReadKey(true);
+                switch(keyInfo.Key)
+                {
+                    case ConsoleKey.Q:
+                        Console.WriteLine("Quitting.");
+                        break;
+                    case ConsoleKey.H:
+                        Console.WriteLine("Printing help.");
+                        break;
+                    case ConsoleKey.L:
+                        Console.WriteLine("Printing local timeline.");
+                        break;
+                    case ConsoleKey.F:
+                        Console.WriteLine("Printing federated timeline.");
+                        break;
+                    case ConsoleKey.M:
+                        Console.WriteLine("Printing my timeline.");
+                        break;
+                    case ConsoleKey.P:
+                        Console.WriteLine("Posting a toot.");
+                        break;
+                    case ConsoleKey.N:
+                        Console.WriteLine("Printing notifications.");
+                        break;
+                    default:
+                        Console.WriteLine("Unknown command.");
+                        break;
+
+                }
+            } while (keyInfo.Key != ConsoleKey.Q);
+        }
     }
 }
