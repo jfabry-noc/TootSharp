@@ -48,46 +48,152 @@ namespace TootSharp
             return code;
         }
 
+        internal void PrintHelp()
+        {
+            Console.WriteLine("Timeline Commands:");
+            Console.WriteLine("  home:      Show home timeline");
+            Console.WriteLine("  local:     Show local timeline");
+            Console.WriteLine("  federated: Show federated timeline");
+            Console.WriteLine("  me:        Show my timeline");
+            Console.WriteLine("\nToot Commands:");
+            Console.WriteLine("  toot:       Post a toot");
+            Console.WriteLine("  delete:     Delete a toot");
+            Console.WriteLine("  reply:      Reply to a toot");
+            Console.WriteLine("  fav:        Favorite a toot");
+            Console.WriteLine("  unfav:      Unfavorite a toot");
+            Console.WriteLine("  boost:      Boost a toot");
+            Console.WriteLine("  bookmark:   Bookmark a toot");
+            Console.WriteLine("  unbookmark: Unbookmark a toot");
+            Console.WriteLine("\nUser Commands:");
+            Console.WriteLine("  follow:   Follow a user");
+            Console.WriteLine("  unfollow: Unfollow a user");
+            Console.WriteLine("\nOther Commands:");
+            Console.WriteLine("  note: Show notifications");
+            Console.WriteLine("  quit: Quit");
+        }
+
+        internal void PostToot(MastoClient client)
+        {
+            Console.WriteLine("Enter your toot (HTML permitted):");
+            Console.Write("> ");
+            var toot = Console.ReadLine();
+            if (toot == null)
+            {
+                Console.WriteLine("No toot entered. Exiting.");
+                return;
+            }
+            Console.WriteLine($"Would post: {toot}");
+        }
+
+        internal void PrintTimeline(MastoClient client, string timeline)
+        {
+            var timelineRoute = $"timelines/{timeline}";
+            var resp = Task.Run(async() => await client.Call(timelineRoute, HttpMethod.Get));
+            //var tootTask = await client.Call(timelineRoute, HttpMethod.Get);
+            // Need to process the Task response prior to returning.
+            var processed = client.ProcessResults<Toot>(resp);
+            if(processed == null)
+            {
+                Console.WriteLine("No toots found.");
+                return;
+            }
+
+            foreach (var toot in processed)
+            {
+                var managedToot = this.ProcessToot(toot);
+                Console.WriteLine($"{managedToot.Username}: {managedToot.Content}");
+            }
+        }
+
+        internal TootView ProcessToot(Toot toot)
+        {
+            string username = "";
+            string content = "";
+            if(toot.Account is not null && toot.Account.Username is not null)
+            {
+                username = toot.Account.Username;
+            }
+
+            if(toot.Content is not null)
+            {
+                content = toot.Content;
+            }
+
+            return new TootView(username, content);
+        }
+
         public void MainLoop(MastoClient client)
         {
-            var keyInfo = new ConsoleKeyInfo();
+            string? command = "";
             do
             {
-                Console.WriteLine("Enter a command key. H for help.");
-                while(!Console.KeyAvailable)
+                Console.WriteLine("Enter a command key. 'help' for help.");
+                Console.Write("> ");
+                command = Console.ReadLine();
+                if(command is null)
                 {
-                    Thread.Sleep(100);
+                    Console.WriteLine("No command entered. Enter 'help' for command options.");
+                    command = "";
+                    continue;
                 }
-                keyInfo = Console.ReadKey(true);
-                switch(keyInfo.Key)
+                switch(command.ToLower())
                 {
-                    case ConsoleKey.Q:
+                    case "quit":
                         Console.WriteLine("Quitting.");
                         break;
-                    case ConsoleKey.H:
-                        Console.WriteLine("Printing help.");
+                    case "help":
+                        this.PrintHelp();
                         break;
-                    case ConsoleKey.L:
+                    case "local":
                         Console.WriteLine("Printing local timeline.");
                         break;
-                    case ConsoleKey.F:
+                    case "federated":
                         Console.WriteLine("Printing federated timeline.");
                         break;
-                    case ConsoleKey.M:
+                    case "me":
                         Console.WriteLine("Printing my timeline.");
                         break;
-                    case ConsoleKey.P:
-                        Console.WriteLine("Posting a toot.");
+                    case "home":
+                        this.PrintTimeline(client, "home");
                         break;
-                    case ConsoleKey.N:
+                    case "toot":
+                        this.PostToot(client);
+                        break;
+                    case "delete":
+                        Console.WriteLine("Deleting a toot.");
+                        break;
+                    case "note":
                         Console.WriteLine("Printing notifications.");
+                        break;
+                    case "reply":
+                        Console.WriteLine("Reply to a toot.");
+                        break;
+                    case "fav":
+                        Console.WriteLine("Favorite a toot.");
+                        break;
+                    case "unfav":
+                        Console.WriteLine("Unfavorite a toot.");
+                        break;
+                    case "boost":
+                        Console.WriteLine("Boost a toot.");
+                        break;
+                    case "bookmark":
+                        Console.WriteLine("Bookmark a toot.");
+                        break;
+                    case "unbookmark":
+                        Console.WriteLine("Unbookmark a toot.");
+                        break;
+                    case "follow":
+                        Console.WriteLine("Follow a user.");
+                        break;
+                    case "unfollow":
+                        Console.WriteLine("Unfollow a user.");
                         break;
                     default:
                         Console.WriteLine("Unknown command.");
                         break;
-
                 }
-            } while (keyInfo.Key != ConsoleKey.Q);
+            } while (command.ToLower() != "quit");
         }
     }
 }
