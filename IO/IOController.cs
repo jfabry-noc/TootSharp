@@ -2,6 +2,17 @@ namespace TootSharp
 {
     public class IOController
     {
+        private List<Toot> _toots { get; set; }
+        private const int _maxToots = 100;
+        private const int _viewCount = 20;
+        private int _nextTootID;
+
+        public IOController()
+        {
+            this._toots = new List<Toot>();
+            this._nextTootID = 1;
+        }
+
         public void PrintGreeting()
         {
             Console.WriteLine(@"___________            __   _________.__                         ");
@@ -48,6 +59,42 @@ namespace TootSharp
             return code;
         }
 
+        private void ManageTootList(string source, List<Toot>? toots, Toot? singleToot)
+        {
+            if(toots is not null)
+            {
+                toots = toots.OrderBy(t => t.CreatedAt).ToList();
+                foreach(var toot in toots)
+                {
+                    if(!this._toots.Where(t => t.Id == toot.Id).Any())
+                    {
+                        toot.InternalID = this._nextTootID;
+                        this._nextTootID++;
+                        toot.ViewSource.Add(source);
+                        this._toots.Add(toot);
+                    }
+                }
+            }
+
+            if(singleToot is not null)
+            {
+                if(!this._toots.Where(t => t.Id == singleToot.Id).Any())
+                {
+                    singleToot.InternalID = this._nextTootID;
+                    this._nextTootID++;
+                    this._toots.Add(singleToot);
+                }
+            }
+
+            if(this._toots.Count > IOController._maxToots)
+            {
+                Console.WriteLine("Trimming toot list...");
+                this._toots.RemoveRange(0, this._toots.Count - IOController._maxToots);
+            }
+
+            this._toots = this._toots.OrderBy(t => t.CreatedAt).ToList();
+        }
+
         internal void PrintHelp()
         {
             Console.WriteLine("Timeline Commands:");
@@ -85,12 +132,191 @@ namespace TootSharp
             Console.WriteLine($"Would post: {toot}");
         }
 
+        internal void PrintToot(Toot toot)
+        {
+            // Process user data and time.
+            var userLine = "\n";
+            if(toot.Account is not null && toot.Account.DisplayName is not null)
+            {
+                userLine += $"{toot.Account.DisplayName}";
+            }
+            if(toot.Account is not null && toot.Account.Acct is not null)
+            {
+                userLine += $" ({toot.Account.Acct})";
+            }
+            if(toot.CreatedAt is not null)
+            {
+                userLine += $" at {toot.CreatedAt}";
+            }
+
+            // Process reblog data.
+            var reblogUserLine = " OP:";
+            var reblogContentLine = "";
+            var reblogMetaLine = $"ID: {toot.InternalID}";
+            if(toot.Reblog is not null)
+            {
+                if(toot.Reblog.Account is not null && toot.Reblog.Account.DisplayName is not null)
+                {
+                    reblogUserLine += $"{toot.Reblog.Account.DisplayName}";
+                }
+                if(toot.Reblog.Account is not null && toot.Reblog.Account.Acct is not null)
+                {
+                    reblogUserLine += $" ({toot.Reblog.Account.Acct})";
+                }
+                if(toot.Reblog.CreatedAt is not null)
+                {
+                    reblogUserLine += $" at {toot.Reblog.CreatedAt}";
+                }
+
+                if(toot.Reblog.SpoilerText is not null && toot.Reblog.SpoilerText != "")
+                {
+                    reblogContentLine = $"-= CW: {toot.Reblog.SpoilerText} =-\n";
+                }
+                if(toot.Reblog.Content is not null)
+                {
+                    reblogContentLine += toot.Reblog.Content;
+                }
+
+                if(toot.Reblog.MediaAttachments is not null)
+                {
+                    foreach(var attachment in toot.Reblog.MediaAttachments)
+                    {
+                        if(attachment.Type is not null && attachment.Url is not null)
+                        {
+                            reblogContentLine += $"\n{attachment.Type}: {attachment.Url}";
+                        }
+                    }
+                }
+
+                if(toot.Reblog.RepliesCount is not null)
+                {
+                    reblogMetaLine += $"\nReplies: {toot.Reblog.RepliesCount}";
+                }
+                else
+                {
+                    reblogMetaLine += "\nReplies: 0";
+                }
+                if(toot.Reblog.ReblogsCount is not null)
+                {
+                    reblogMetaLine += $" | Reblogs: {toot.Reblog.ReblogsCount}";
+                }
+                else
+                {
+                    reblogMetaLine += " | Reblogs: 0";
+                }
+                if(toot.Reblog.FavouritesCount is not null)
+                {
+                    reblogMetaLine += $" | Favs: {toot.Reblog.FavouritesCount}";
+                }
+                else
+                {
+                    reblogMetaLine += " | Favs: 0";
+                }
+            }
+
+            // Process content.
+            var contentLine = "";
+            if(toot.SpoilerText is not null && toot.SpoilerText != "")
+            {
+                contentLine = $"-= CW: {toot.SpoilerText} =-\n";
+            }
+            if(toot.Content is not null)
+            {
+                contentLine += toot.Content;
+            }
+            if(toot.MediaAttachments is not null)
+            {
+                foreach(var attachment in toot.MediaAttachments)
+                {
+                    if(attachment.Type is not null && attachment.Url is not null)
+                    {
+                        contentLine += $"\n{attachment.Type}: {attachment.Url}";
+                    }
+                }
+            }
+
+            // Process metadata.
+            var metaLine = $"ID: {toot.InternalID}";
+            if(toot.RepliesCount is not null)
+            {
+                metaLine += $" | Replies: {toot.RepliesCount}";
+            }
+            else
+            {
+                metaLine += " | Replies: 0";
+            }
+            if(toot.ReblogsCount is not null)
+            {
+                metaLine += $" | Reblogs: {toot.ReblogsCount}";
+            }
+            else
+            {
+                metaLine += " | Reblogs: 0";
+            }
+            if(toot.FavouritesCount is not null)
+            {
+                metaLine += $" | Favs: {toot.FavouritesCount}";
+            }
+            else
+            {
+                metaLine += " | Favs: 0";
+            }
+            metaLine += "\n";
+
+            Console.WriteLine(userLine);
+            if(toot.Reblog is not null)
+            {
+                Console.WriteLine(reblogUserLine);
+                if(reblogContentLine != "")
+                {
+                    Console.WriteLine(reblogContentLine);
+                }
+                Console.WriteLine(reblogMetaLine);
+            }
+            else{
+                if(contentLine != "")
+                {
+                    Console.WriteLine(contentLine);
+                }
+                Console.WriteLine(metaLine);
+            }
+        }
+
+        internal void PrintToots(List<Toot> toots, string? source)
+        {
+            var currentList = new List<Toot>();
+            //toots = toots.OrderByDescending(t => t.CreatedAt).ToList();
+            toots = toots.OrderBy(t => t.CreatedAt).ToList();
+            foreach(var toot in toots)
+            {
+                if(source is not null)
+                {
+                    if(toot.ViewSource.Contains(source))
+                    {
+                        currentList.Add(toot);
+                    }
+                }
+                else
+                {
+                    currentList.Add(toot);
+                }
+                if (currentList.Count == IOController._viewCount)
+                {
+                    break;
+                }
+            }
+
+            foreach(var singleToot in currentList)
+            {
+                this.PrintToot(singleToot);
+            }
+        }
+
         internal void PrintTimeline(MastoClient client, string timeline)
         {
             var timelineRoute = $"timelines/{timeline}";
             var resp = Task.Run(async() => await client.Call(timelineRoute, HttpMethod.Get));
-            //var tootTask = await client.Call(timelineRoute, HttpMethod.Get);
-            // Need to process the Task response prior to returning.
+
             var processed = client.ProcessResults<Toot>(resp);
             if(processed == null)
             {
@@ -98,28 +324,8 @@ namespace TootSharp
                 return;
             }
 
-            foreach (var toot in processed)
-            {
-                var managedToot = this.ProcessToot(toot);
-                Console.WriteLine($"{managedToot.Username}: {managedToot.Content}");
-            }
-        }
-
-        internal TootView ProcessToot(Toot toot)
-        {
-            string username = "";
-            string content = "";
-            if(toot.Account is not null && toot.Account.Username is not null)
-            {
-                username = toot.Account.Username;
-            }
-
-            if(toot.Content is not null)
-            {
-                content = toot.Content;
-            }
-
-            return new TootView(username, content);
+            this.ManageTootList(timeline, processed, null);
+            this.PrintToots(this._toots, timeline);
         }
 
         public void MainLoop(MastoClient client)

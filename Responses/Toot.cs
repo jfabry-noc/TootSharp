@@ -340,6 +340,20 @@ namespace TootSharp
         [JsonPropertyName("id")]
         public string? Id { get; set; }
 
+        public int InternalID
+        {
+            get { return internalID; }
+            set { internalID = value; }
+        }
+        private int internalID = 0;
+
+        public List<string> ViewSource
+        {
+            get { return viewSource; }
+            set { viewSource = value; }
+        }
+        private List<string> viewSource = new List<string>();
+
         [JsonPropertyName("created_at")]
         public DateTime? CreatedAt { get; set; }
 
