@@ -174,7 +174,7 @@ namespace TootSharp
                 }
                 if(toot.Reblog.Content is not null)
                 {
-                    reblogContentLine += toot.Reblog.Content;
+                    reblogContentLine += this.ProcessTootContent(toot.Reblog.Content);
                 }
 
                 if(toot.Reblog.MediaAttachments is not null)
@@ -190,11 +190,11 @@ namespace TootSharp
 
                 if(toot.Reblog.RepliesCount is not null)
                 {
-                    reblogMetaLine += $"\nReplies: {toot.Reblog.RepliesCount}";
+                    reblogMetaLine += $" | Replies: {toot.Reblog.RepliesCount}";
                 }
                 else
                 {
-                    reblogMetaLine += "\nReplies: 0";
+                    reblogMetaLine += " | Replies: 0";
                 }
                 if(toot.Reblog.ReblogsCount is not null)
                 {
@@ -222,7 +222,7 @@ namespace TootSharp
             }
             if(toot.Content is not null)
             {
-                contentLine += toot.Content;
+                contentLine += this.ProcessTootContent(toot.Content);
             }
             if(toot.MediaAttachments is not null)
             {
@@ -282,11 +282,24 @@ namespace TootSharp
             }
         }
 
+        internal string ProcessTootContent(string content)
+        {
+            // Change this to use the HtmlAgilityPack library.
+            // https://www.nuget.org/packages/HtmlAgilityPack/
+            if(content.EndsWith("</p>"))
+            {
+                content = content.Remove(content.Length - 4);
+            }
+            content = content.Replace("<p>", "");
+            content = content.Replace("</p>", "\n\n");
+
+            return content;
+        }
+
         internal void PrintToots(List<Toot> toots, string? source)
         {
             var currentList = new List<Toot>();
-            //toots = toots.OrderByDescending(t => t.CreatedAt).ToList();
-            toots = toots.OrderBy(t => t.CreatedAt).ToList();
+            toots = toots.OrderByDescending(t => t.CreatedAt).ToList();
             foreach(var toot in toots)
             {
                 if(source is not null)
@@ -306,16 +319,32 @@ namespace TootSharp
                 }
             }
 
-            foreach(var singleToot in currentList)
+            for(int i = currentList.Count - 1; i >= 0; i--)
             {
-                this.PrintToot(singleToot);
+                this.PrintToot(currentList[i]);
             }
         }
 
         internal void PrintTimeline(MastoClient client, string timeline)
         {
-            var timelineRoute = $"timelines/{timeline}";
-            var resp = Task.Run(async() => await client.Call(timelineRoute, HttpMethod.Get));
+            string timelineRoute = "timelines/";
+            Dictionary<string, string>? queryParams = null;
+            if(timeline.ToLower() == "local")
+            {
+                queryParams = new Dictionary<string, string>()
+                {
+                    { "local", "true" }
+                };
+            }
+
+            if(timeline.ToLower() == "home")
+            {
+                timelineRoute = $"{timelineRoute}{timeline}";
+            }
+            else {
+                timelineRoute = $"{timelineRoute}public";
+            }
+            var resp = Task.Run(async() => await client.Call(timelineRoute, HttpMethod.Get, queryParams));
 
             var processed = client.ProcessResults<Toot>(resp);
             if(processed == null)
@@ -351,9 +380,10 @@ namespace TootSharp
                         this.PrintHelp();
                         break;
                     case "local":
-                        Console.WriteLine("Printing local timeline.");
+                        this.PrintTimeline(client, "local");
                         break;
                     case "federated":
+                    this.PrintTimeline(client, "federated");
                         Console.WriteLine("Printing federated timeline.");
                         break;
                     case "me":
