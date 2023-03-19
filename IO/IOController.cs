@@ -1,3 +1,7 @@
+using AngleSharp;
+using AngleSharp.Dom;
+using AngleSharp.Html.Parser;
+
 namespace TootSharp
 {
     public class IOController
@@ -152,7 +156,7 @@ namespace TootSharp
             // Process reblog data.
             var reblogUserLine = " OP:";
             var reblogContentLine = "";
-            var reblogMetaLine = $"ID: {toot.InternalID}";
+            var reblogMetaLine = $"  ID: {toot.InternalID}";
             if(toot.Reblog is not null)
             {
                 if(toot.Reblog.Account is not null && toot.Reblog.Account.DisplayName is not null)
@@ -236,7 +240,7 @@ namespace TootSharp
             }
 
             // Process metadata.
-            var metaLine = $"ID: {toot.InternalID}";
+            var metaLine = $"  ID: {toot.InternalID}";
             if(toot.RepliesCount is not null)
             {
                 metaLine += $" | Replies: {toot.RepliesCount}";
@@ -284,16 +288,76 @@ namespace TootSharp
 
         internal string ProcessTootContent(string content)
         {
-            // Change this to use the HtmlAgilityPack library.
-            // https://www.nuget.org/packages/HtmlAgilityPack/
-            if(content.EndsWith("</p>"))
-            {
-                content = content.Remove(content.Length - 4);
-            }
-            content = content.Replace("<p>", "");
-            content = content.Replace("</p>", "\n\n");
+            // https://www.nuget.org/packages/AngleSharp
+            content = content.Replace("<br>", "\n    ");
 
-            return content;
+            string result = "";
+            IConfiguration config = Configuration.Default;
+            IBrowsingContext context = BrowsingContext.New(config);
+            var parser = new HtmlParser();
+            var parsed = parser.ParseDocument(content);
+
+            var resp = Task.Run(async() => await context
+                .OpenAsync(req => req.Content(content)));
+            resp.Wait();
+            var doc = resp.Result;
+
+            var cleanedLinks = new List<string>();
+            var mentions = doc.QuerySelectorAll("span.h-card");
+            var rawLinks = doc.QuerySelectorAll("a");
+
+            foreach(var instance in rawLinks)
+            {
+                if(instance.ClassName is not null && instance.ClassName.Contains("hashtag"))
+                {
+                    cleanedLinks.Add($"{instance.TextContent} -> {instance.GetAttribute("href")}");
+                    var newText = doc.CreateTextNode(instance.TextContent);
+                    instance.ReplaceWith(newText);
+                }
+                else
+                {
+                    if(instance.ClassName is null)
+                    {
+                        var newText = doc.CreateTextNode(instance.TextContent);
+                        instance.ReplaceWith(newText);
+                    }
+                }
+            }
+
+            foreach(var mention in mentions)
+            {
+                var link = mention.QuerySelector("a");
+                if(link is not null)
+                {
+                    cleanedLinks.Add($"{link.TextContent} -> {link.GetAttribute("href")}");
+                    var newText = doc.CreateTextNode(link.TextContent);
+                    mention.ReplaceWith(newText);
+                }
+            }
+
+            var paragraphs = doc.QuerySelectorAll("p");
+            var counter = 0;
+            foreach(var paragraph in paragraphs)
+            {
+                counter++;
+                //Console.WriteLine(paragraph.InnerHtml + "\n");
+                if(counter == paragraphs.Length)
+                {
+                    result += "    " + paragraph.InnerHtml + "\n";
+                }
+                else
+                {
+                    result += "    " + paragraph.InnerHtml + "\n\n";
+                }
+            }
+
+            foreach(var link in cleanedLinks)
+            {
+                result += "  " + link + "\n";
+
+            }
+
+            return result;
         }
 
         internal void PrintToots(List<Toot> toots, string? source)
