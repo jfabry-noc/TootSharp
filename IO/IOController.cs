@@ -139,7 +139,7 @@ namespace TootSharp
         internal void PrintToot(Toot toot)
         {
             // Process user data and time.
-            var userLine = "\n";
+            var userLine = "\n--== ";
             if(toot.Account is not null && toot.Account.DisplayName is not null)
             {
                 userLine += $"{toot.Account.DisplayName}";
@@ -152,6 +152,7 @@ namespace TootSharp
             {
                 userLine += $" at {toot.CreatedAt}";
             }
+            userLine += " ==--";
 
             // Process reblog data.
             var reblogUserLine = " OP:";
@@ -188,6 +189,10 @@ namespace TootSharp
                         if(attachment.Type is not null && attachment.Url is not null)
                         {
                             reblogContentLine += $"\n{attachment.Type}: {attachment.Url}";
+                        }
+                        if(attachment.Description is not null)
+                        {
+                            reblogContentLine += $"\nAlt Text: {attachment.Description}";
                         }
                     }
                 }
@@ -235,6 +240,10 @@ namespace TootSharp
                     if(attachment.Type is not null && attachment.Url is not null)
                     {
                         contentLine += $"\n{attachment.Type}: {attachment.Url}";
+                    }
+                    if(attachment.Description is not null)
+                    {
+                        contentLine += $"\nAlt Text: {attachment.Description}";
                     }
                 }
             }
