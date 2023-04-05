@@ -430,6 +430,43 @@ namespace TootSharp
             this.PrintToots(this._toots, timeline);
         }
 
+        internal void FavoriteToot(MastoClient client, string id)
+        {
+            int idConv;
+            var success = int.TryParse(id, out idConv);
+            if(!success)
+            {
+                Console.WriteLine($"Invalid ID: {id}");
+                return;
+            }
+
+            // Passed ID is the "friendly" one. Find the actual ID.
+            var toot = this._toots.Find(t => t.InternalID == idConv);
+            if(toot is null)
+            {
+                Console.WriteLine($"No toot found with ID: {idConv}");
+                return;
+            }
+
+            var resp = Task.Run(async() => await client.Call($"statuses/{toot.Id}/favourite", HttpMethod.Post));
+            var processed = client.ProcessResult<Toot>(resp);
+            if(processed is not null)
+            {
+                Console.WriteLine("Favorited: ");
+                this.PrintToot(toot);
+            }
+        }
+
+        private string? ProcessCommandData(string command)
+        {
+            string? result = null;
+            if(command.Contains(" "))
+            {
+                result = command.Substring(command.IndexOf(" ") + 1);
+            }
+            return result;
+        }
+
         public void MainLoop(MastoClient client)
         {
             string? command = "";
@@ -444,63 +481,89 @@ namespace TootSharp
                     command = "";
                     continue;
                 }
-                switch(command.ToLower())
+                else
                 {
-                    case "quit":
-                        Console.WriteLine("Quitting.");
-                        break;
-                    case "help":
-                        this.PrintHelp();
-                        break;
-                    case "local":
-                        this.PrintTimeline(client, "local");
-                        break;
-                    case "federated":
+                    command = command.ToLower().Trim();
+                }
+                if(command == "quit")
+                {
+                    Console.WriteLine("Quitting.");
+                }
+                else if(command == "help")
+                {
+                    this.PrintHelp();
+                }
+                else if(command == "local")
+                {
+                    this.PrintTimeline(client, "local");
+                }
+                else if(command == "federated")
+                {
                     this.PrintTimeline(client, "federated");
-                        Console.WriteLine("Printing federated timeline.");
-                        break;
-                    case "me":
-                        Console.WriteLine("Printing my timeline.");
-                        break;
-                    case "home":
-                        this.PrintTimeline(client, "home");
-                        break;
-                    case "toot":
-                        this.PostToot(client);
-                        break;
-                    case "delete":
-                        Console.WriteLine("Deleting a toot.");
-                        break;
-                    case "note":
-                        Console.WriteLine("Printing notifications.");
-                        break;
-                    case "reply":
-                        Console.WriteLine("Reply to a toot.");
-                        break;
-                    case "fav":
-                        Console.WriteLine("Favorite a toot.");
-                        break;
-                    case "unfav":
-                        Console.WriteLine("Unfavorite a toot.");
-                        break;
-                    case "boost":
-                        Console.WriteLine("Boost a toot.");
-                        break;
-                    case "bookmark":
-                        Console.WriteLine("Bookmark a toot.");
-                        break;
-                    case "unbookmark":
-                        Console.WriteLine("Unbookmark a toot.");
-                        break;
-                    case "follow":
-                        Console.WriteLine("Follow a user.");
-                        break;
-                    case "unfollow":
-                        Console.WriteLine("Unfollow a user.");
-                        break;
-                    default:
-                        Console.WriteLine("Unknown command.");
-                        break;
+                }
+                else if(command == "me")
+                {
+                    Console.WriteLine("Printing my timeline.");
+                }
+                else if(command == "home")
+                {
+                    this.PrintTimeline(client, "home");
+                }
+                else if(command == "toot")
+                {
+                    this.PostToot(client);
+                }
+                else if(command.StartsWith("delete"))
+                {
+                    Console.WriteLine("Deleting a toot.");
+                }
+                else if(command == "note")
+                {
+                    Console.WriteLine("Printing notifications.");
+                }
+                else if(command.StartsWith("reply"))
+                {
+                    Console.WriteLine("Replying to a toot.");
+                }
+                else if(command.StartsWith("fav"))
+                {
+                    var id = this.ProcessCommandData(command);
+                    if(id is not null)
+                    {
+                        this.FavoriteToot(client, id);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid ID.");
+                    }
+                }
+                else if(command.StartsWith("unfav"))
+                {
+                    Console.WriteLine("Unfavorite a toot.");
+                }
+                else if(command.StartsWith("boost"))
+                {
+                    Console.WriteLine("Boost a toot.");
+                }
+                else if(command.StartsWith("unboost"))
+                {
+                    Console.WriteLine("Unboost a toot.");
+                }
+                else if(command.StartsWith("bookmark"))
+                {
+                    Console.WriteLine("Bookmark a toot.");
+                }
+                else if(command.StartsWith("unbookmark"))
+                {
+                    Console.WriteLine("Unbookmark a toot.");
+                }
+                else if(command.StartsWith("follow"))
+                {
+                    Console.WriteLine("Follow a user.");
+                }
+                else if(command.StartsWith("unfollow"))
+                {
+                    Console.WriteLine("Unfollow a user.");
                 }
             } while (command.ToLower() != "quit");
         }

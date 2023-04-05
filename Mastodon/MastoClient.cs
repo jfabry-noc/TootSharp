@@ -173,5 +173,15 @@ namespace TootSharp
 
             return JsonSerializer.Deserialize<List<T>>(resp.Result);
         }
+
+        public T? ProcessResult<T>(Task<string?>? resp)
+        {
+            if(resp is null || resp.Result is null)
+            {
+                return default;
+            }
+
+            return JsonSerializer.Deserialize<T>(resp.Result);
+        }
     }
 }
