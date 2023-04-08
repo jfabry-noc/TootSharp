@@ -449,7 +449,6 @@ namespace TootSharp
                 return;
             }
 
-            // Passed ID is the "friendly" one. Find the actual ID.
             var toot = this._toots.Find(t => t.InternalID == idConv);
             if(toot is null)
             {
@@ -468,6 +467,48 @@ namespace TootSharp
                 else
                 {
                     Console.WriteLine("Favorited: ");
+                }
+                this.PrintToot(toot);
+            }
+        }
+
+        internal void BoostToot(MastoClient client, string id, bool unboost = false)
+        {
+            string endpoint;
+            if(unboost)
+            {
+                endpoint = "unreblog";
+            }
+            else
+            {
+                endpoint = "reblog";
+            }
+            int idConv;
+            var success = int.TryParse(id, out idConv);
+            if(!success)
+            {
+                Console.WriteLine($"Invalid ID: {id}");
+                return;
+            }
+
+            var toot = this._toots.Find(t => t.InternalID == idConv);
+            if(toot is null)
+            {
+                Console.WriteLine($"No toot found with ID: {idConv}");
+                return;
+            }
+
+            var resp = Task.Run(async() => await client.Call($"statuses/{toot.Id}/{endpoint}", HttpMethod.Post));
+            var processed = client.ProcessResult<Toot>(resp);
+            if(processed is not null)
+            {
+                if(unboost)
+                {
+                    Console.WriteLine("Unboosted: ");
+                }
+                else
+                {
+                    Console.WriteLine("Boosted: ");
                 }
                 this.PrintToot(toot);
             }
@@ -567,11 +608,27 @@ namespace TootSharp
                 }
                 else if(command.StartsWith("boost"))
                 {
-                    Console.WriteLine("Boost a toot.");
+                    var id = this.ProcessCommandData(command);
+                    if(id is not null)
+                    {
+                        this.BoostToot(client, id);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid ID.");
+                    }
                 }
                 else if(command.StartsWith("unboost"))
                 {
-                    Console.WriteLine("Unboost a toot.");
+                    var id = this.ProcessCommandData(command);
+                    if(id is not null)
+                    {
+                        this.BoostToot(client, id, true);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid ID.");
+                    }
                 }
                 else if(command.StartsWith("bookmark"))
                 {
