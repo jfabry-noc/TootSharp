@@ -430,8 +430,17 @@ namespace TootSharp
             this.PrintToots(this._toots, timeline);
         }
 
-        internal void FavoriteToot(MastoClient client, string id)
+        internal void FavoriteToot(MastoClient client, string id, bool unfav = false)
         {
+            string endpoint;
+            if(unfav)
+            {
+                endpoint = "unfavourite";
+            }
+            else
+            {
+                endpoint = "favourite";
+            }
             int idConv;
             var success = int.TryParse(id, out idConv);
             if(!success)
@@ -448,11 +457,18 @@ namespace TootSharp
                 return;
             }
 
-            var resp = Task.Run(async() => await client.Call($"statuses/{toot.Id}/favourite", HttpMethod.Post));
+            var resp = Task.Run(async() => await client.Call($"statuses/{toot.Id}/{endpoint}", HttpMethod.Post));
             var processed = client.ProcessResult<Toot>(resp);
             if(processed is not null)
             {
-                Console.WriteLine("Favorited: ");
+                if(unfav)
+                {
+                    Console.WriteLine("Unfavorited: ");
+                }
+                else
+                {
+                    Console.WriteLine("Favorited: ");
+                }
                 this.PrintToot(toot);
             }
         }
@@ -539,7 +555,15 @@ namespace TootSharp
                 }
                 else if(command.StartsWith("unfav"))
                 {
-                    Console.WriteLine("Unfavorite a toot.");
+                    var id = this.ProcessCommandData(command);
+                    if(id is not null)
+                    {
+                        this.FavoriteToot(client, id, true);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid ID.");
+                    }
                 }
                 else if(command.StartsWith("boost"))
                 {
