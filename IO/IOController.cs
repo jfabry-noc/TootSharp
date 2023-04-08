@@ -456,7 +456,13 @@ namespace TootSharp
                 return;
             }
 
-            var resp = Task.Run(async() => await client.Call($"statuses/{toot.Id}/{endpoint}", HttpMethod.Post));
+            string? tootId = toot.Id;
+            if(toot.Reblog is not null)
+            {
+                tootId = toot.Reblog.Id;
+            }
+
+            var resp = Task.Run(async() => await client.Call($"statuses/{tootId}/{endpoint}", HttpMethod.Post));
             var processed = client.ProcessResult<Toot>(resp);
             if(processed is not null)
             {
@@ -498,7 +504,13 @@ namespace TootSharp
                 return;
             }
 
-            var resp = Task.Run(async() => await client.Call($"statuses/{toot.Id}/{endpoint}", HttpMethod.Post));
+            string? tootId = toot.Id;
+            if(toot.Reblog is not null)
+            {
+                tootId = toot.Reblog.Id;
+            }
+
+            var resp = Task.Run(async() => await client.Call($"statuses/{tootId}/{endpoint}", HttpMethod.Post));
             var processed = client.ProcessResult<Toot>(resp);
             if(processed is not null)
             {
@@ -509,6 +521,53 @@ namespace TootSharp
                 else
                 {
                     Console.WriteLine("Boosted: ");
+                }
+                this.PrintToot(toot);
+            }
+        }
+
+        internal void BookmarkToot(MastoClient client, string id, bool unbookmark = false)
+        {
+            string endpoint;
+            if(unbookmark)
+            {
+                endpoint = "unbookmark";
+            }
+            else
+            {
+                endpoint = "bookmark";
+            }
+            int idConv;
+            var success = int.TryParse(id, out idConv);
+            if(!success)
+            {
+                Console.WriteLine($"Invalid ID: {id}");
+                return;
+            }
+
+            var toot = this._toots.Find(t => t.InternalID == idConv);
+            if(toot is null)
+            {
+                Console.WriteLine($"No toot found with ID: {idConv}");
+                return;
+            }
+            string? tootId = toot.Id;
+            if(toot.Reblog is not null)
+            {
+                tootId = toot.Reblog.Id;
+            }
+
+            var resp = Task.Run(async() => await client.Call($"statuses/{tootId}/{endpoint}", HttpMethod.Post));
+            var processed = client.ProcessResult<Toot>(resp);
+            if(processed is not null)
+            {
+                if(unbookmark)
+                {
+                    Console.WriteLine("Unbookmarked: ");
+                }
+                else
+                {
+                    Console.WriteLine("Bookmarked: ");
                 }
                 this.PrintToot(toot);
             }
@@ -632,11 +691,31 @@ namespace TootSharp
                 }
                 else if(command.StartsWith("bookmark"))
                 {
-                    Console.WriteLine("Bookmark a toot.");
+                    var id = this.ProcessCommandData(command);
+                    if(id is not null)
+                    {
+                        this.BookmarkToot(client, id);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid ID.");
+                    }
                 }
                 else if(command.StartsWith("unbookmark"))
                 {
-                    Console.WriteLine("Unbookmark a toot.");
+                    var id = this.ProcessCommandData(command);
+                    if(id is not null)
+                    {
+                        this.BookmarkToot(client, id, true);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid ID.");
+                    }
+                }
+                else if(command.StartsWith("search"))
+                {
+                    Console.WriteLine("Search for a toot.");
                 }
                 else if(command.StartsWith("follow"))
                 {
