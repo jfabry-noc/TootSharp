@@ -573,6 +573,29 @@ namespace TootSharp
             }
         }
 
+        internal void DeleteToot(MastoClient client, string id)
+        {
+            int idConv;
+            var success = int.TryParse(id, out idConv);
+
+            var toot = this._toots.Find(t => t.InternalID == idConv);
+            if(toot is null)
+            {
+                Console.WriteLine($"No toot found with ID: {idConv}");
+                return;
+            }
+
+            var resp = Task.Run(async() => await client.Call($"statuses/{toot.Id}", HttpMethod.Delete));
+            var processed = client.ProcessResult<Toot>(resp);
+            if(processed is not null)
+            {
+                Console.WriteLine("Deleted: ");
+                this.PrintToot(toot);
+            }
+
+            this._toots.Remove(toot);
+        }
+
         private string? ProcessCommandData(string command)
         {
             string? result = null;
@@ -631,7 +654,15 @@ namespace TootSharp
                 }
                 else if(command.StartsWith("delete"))
                 {
-                    Console.WriteLine("Deleting a toot.");
+                    var id = this.ProcessCommandData(command);
+                    if(id is not null)
+                    {
+                        this.DeleteToot(client, id);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid ID.");
+                    }
                 }
                 else if(command == "note")
                 {
