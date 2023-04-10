@@ -108,16 +108,17 @@ namespace TootSharp
             Console.WriteLine("  me:        Show my timeline");
             Console.WriteLine("\nToot Commands:");
             Console.WriteLine("  toot:       Post a toot");
-            Console.WriteLine("  delete:     Delete a toot");
-            Console.WriteLine("  reply:      Reply to a toot");
-            Console.WriteLine("  fav:        Favorite a toot");
-            Console.WriteLine("  unfav:      Unfavorite a toot");
-            Console.WriteLine("  boost:      Boost a toot");
-            Console.WriteLine("  bookmark:   Bookmark a toot");
-            Console.WriteLine("  unbookmark: Unbookmark a toot");
+            Console.WriteLine("  delete {id}:     Delete a toot");
+            Console.WriteLine("  reply {id}:      Reply to a toot");
+            Console.WriteLine("  fav {id}:        Favorite a toot");
+            Console.WriteLine("  unfav {id}:      Unfavorite a toot");
+            Console.WriteLine("  boost {id}:      Boost a toot");
+            Console.WriteLine("  bookmark {id}:   Bookmark a toot");
+            Console.WriteLine("  unbookmark {id}: Unbookmark a toot");
             Console.WriteLine("\nUser Commands:");
-            Console.WriteLine("  follow:   Follow a user");
-            Console.WriteLine("  unfollow: Unfollow a user");
+            Console.WriteLine("  follow:          Follow a user");
+            Console.WriteLine("  unfollow:        Unfollow a user");
+            Console.WriteLine("  bio {webfinger}: Show a user's bio");
             Console.WriteLine("\nOther Commands:");
             Console.WriteLine("  note: Show notifications");
             Console.WriteLine("  quit: Quit");
@@ -146,7 +147,7 @@ namespace TootSharp
             }
             if(toot.Account is not null && toot.Account.Acct is not null)
             {
-                userLine += $" ({toot.Account.Acct})";
+                userLine += $" (@{toot.Account.Acct})";
             }
             if(toot.CreatedAt is not null)
             {
@@ -295,6 +296,70 @@ namespace TootSharp
             }
         }
 
+        internal void PrintUser(User user)
+        {
+            string userOutput = "";
+            if(user.DisplayName is not null && user.Acct is not null)
+            {
+                userOutput += $"--== {user.DisplayName}: @{user.Acct} ==--\n";
+            }
+
+            if(user.Url is not null)
+            {
+                userOutput += $"URL: {user.Url}\n";
+            }
+            if(user.StatusesCount is not null)
+            {
+                userOutput += $"Toots: {user.StatusesCount}\n";
+            }
+            if(user.FollowersCount is not null)
+            {
+                userOutput += $"Followers: {user.FollowersCount}\n";
+            }
+            if(user.FollowingCount is not null)
+            {
+                userOutput += $"Following: {user.FollowingCount}\n";
+            }
+            if(user.LastStatusAt is not null)
+            {
+                userOutput += $"Last Toot: {user.LastStatusAt}\n";
+            }
+            if(user.Note is not null)
+            {
+                userOutput += $"Bio:\n{this.ProcessTootContent(user.Note)}\n";
+            }
+
+            if(user.Fields is not null)
+            {
+                userOutput += "Links:\n";
+                foreach(var field in user.Fields)
+                {
+                    if(field.Value is not null)
+                    {
+                        userOutput += $" -> {field.Name}: {this.ProcessBioLink(field.Value)}\n";
+                    }
+                }
+            }
+
+            Console.WriteLine(userOutput);
+        }
+
+        internal string? ProcessBioLink(string content)
+        {
+            IConfiguration config = Configuration.Default;
+            IBrowsingContext context = BrowsingContext.New(config);
+            var resp = Task.Run(async() => await context
+                .OpenAsync(req => req.Content(content)));
+            resp.Wait();
+            var doc = resp.Result;
+            var rawLinks = doc.QuerySelectorAll("a");
+            foreach(var instance in rawLinks)
+            {
+                return instance.GetAttribute("href");
+            }
+            return null;
+        }
+
         internal string ProcessTootContent(string content)
         {
             // https://www.nuget.org/packages/AngleSharp
@@ -349,7 +414,6 @@ namespace TootSharp
             foreach(var paragraph in paragraphs)
             {
                 counter++;
-                //Console.WriteLine(paragraph.InnerHtml + "\n");
                 if(counter == paragraphs.Length)
                 {
                     result += "    " + paragraph.InnerHtml + "\n";
@@ -596,6 +660,20 @@ namespace TootSharp
             this._toots.Remove(toot);
         }
 
+        internal void LookupUser(MastoClient client, string webFinger)
+        {
+            var queryParams = new Dictionary<string, string>()
+            {
+                {"acct", webFinger}
+            };
+            var resp = Task.Run(async() => await client.Call("accounts/lookup", HttpMethod.Get, queryParams));
+            var processed = client.ProcessResult<User>(resp);
+            if(processed is not null)
+            {
+                this.PrintUser(processed);
+            }
+        }
+
         private string? ProcessCommandData(string command)
         {
             string? result = null;
@@ -611,7 +689,7 @@ namespace TootSharp
             string? command = "";
             do
             {
-                Console.WriteLine("Enter a command key. 'help' for help.");
+                Console.WriteLine("Enter a command. 'help' for help.");
                 Console.Write("> ");
                 command = Console.ReadLine();
                 if(command is null)
@@ -755,6 +833,18 @@ namespace TootSharp
                 else if(command.StartsWith("unfollow"))
                 {
                     Console.WriteLine("Unfollow a user.");
+                }
+                else if(command.StartsWith("bio"))
+                {
+                    var webFinger = this.ProcessCommandData(command);
+                    if(webFinger is not null)
+                    {
+                        this.LookupUser(client, webFinger);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid WebFinger address.");
+                    }
                 }
             } while (command.ToLower() != "quit");
         }
