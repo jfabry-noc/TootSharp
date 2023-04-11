@@ -329,7 +329,7 @@ namespace TootSharp
                 userOutput += $"Bio:\n{this.ProcessTootContent(user.Note)}\n";
             }
 
-            if(user.Fields is not null)
+            if(user.Fields is not null && user.Fields.Count > 0)
             {
                 userOutput += "Links:\n";
                 foreach(var field in user.Fields)
@@ -660,7 +660,41 @@ namespace TootSharp
             this._toots.Remove(toot);
         }
 
-        internal void LookupUser(MastoClient client, string webFinger)
+        internal void FollowUser(MastoClient client, string id, string webFinger, bool unfollow= false)
+        {
+            string endpoint;
+            if(unfollow)
+            {
+                endpoint = "unfollow";
+            }
+            else
+            {
+                endpoint = "follow";
+            }
+            long idConv;
+            var success = long.TryParse(id, out idConv);
+            if(!success)
+            {
+                Console.WriteLine($"Invalid ID: {id}");
+                return;
+            }
+
+            var resp = Task.Run(async() => await client.Call($"accounts/{id}/{endpoint}", HttpMethod.Post));
+            var processed = client.ProcessResult<Follow>(resp);
+            if(processed is not null)
+            {
+                if(unfollow)
+                {
+                    Console.WriteLine($"Unfollowed: {webFinger}");
+                }
+                else
+                {
+                    Console.WriteLine($"Followed: {webFinger}");
+                }
+            }
+        }
+
+        internal string? LookupUser(MastoClient client, string webFinger, bool print = false)
         {
             var queryParams = new Dictionary<string, string>()
             {
@@ -670,8 +704,13 @@ namespace TootSharp
             var processed = client.ProcessResult<User>(resp);
             if(processed is not null)
             {
-                this.PrintUser(processed);
+                if(print)
+                {
+                    this.PrintUser(processed);
+                }
+                return processed.Id;
             }
+            return null;
         }
 
         private string? ProcessCommandData(string command)
@@ -828,18 +867,42 @@ namespace TootSharp
                 }
                 else if(command.StartsWith("follow"))
                 {
-                    Console.WriteLine("Follow a user.");
+                    var webfinger = this.ProcessCommandData(command);
+                    if(webfinger is not null)
+                    {
+                        var id = this.LookupUser(client, webfinger);
+                        if(id is not null)
+                        {
+                            this.FollowUser(client, id, webfinger);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid WebFinger address.");
+                    }
                 }
                 else if(command.StartsWith("unfollow"))
                 {
-                    Console.WriteLine("Unfollow a user.");
+                    var webfinger = this.ProcessCommandData(command);
+                    if(webfinger is not null)
+                    {
+                        var id = this.LookupUser(client, webfinger);
+                        if(id is not null)
+                        {
+                            this.FollowUser(client, id, webfinger, true);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid WebFinger address.");
+                    }
                 }
                 else if(command.StartsWith("bio"))
                 {
                     var webFinger = this.ProcessCommandData(command);
                     if(webFinger is not null)
                     {
-                        this.LookupUser(client, webFinger);
+                        this.LookupUser(client, webFinger, true);
                     }
                     else
                     {
