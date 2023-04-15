@@ -90,7 +90,7 @@ namespace TootSharp
             string path,
             HttpMethod? method,
             Dictionary<string, string>? queryParams = null,
-            string? dto = null
+            Dictionary<string, string>? form = null
         )
         {
             var currentUrl = $"https://{this.Instance}{this.ApiPath}{path}";
@@ -101,7 +101,7 @@ namespace TootSharp
             }
             Console.WriteLine($"Calling {currentUrl}");
 
-            StringContent? body = this.ParseDto(dto);
+            FormUrlEncodedContent? body = this.ProcessFormContent(form);
 
             if(body is not null && method is null)
             {
@@ -145,13 +145,13 @@ namespace TootSharp
             return content;
         }
 
-        internal StringContent? ParseDto(string? dto)
+        private FormUrlEncodedContent? ProcessFormContent(Dictionary<string, string>? form)
         {
-            if(dto is not null)
+            if(form is null)
             {
-                return new StringContent(dto, Encoding.UTF8, "application/json");
+                return null;
             }
-            return null;
+            return new FormUrlEncodedContent(form);
         }
 
         private string AddQueryParams(string currentUrl, Dictionary<string, string> queryParams)

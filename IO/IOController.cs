@@ -1,6 +1,10 @@
 using AngleSharp;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
+using System.Diagnostics;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace TootSharp
 {
@@ -124,17 +128,101 @@ namespace TootSharp
             Console.WriteLine("  quit: Quit");
         }
 
-        internal void PostToot(MastoClient client)
+        private string MakeTempFileName(Guid guid)
         {
-            Console.WriteLine("Enter your toot (HTML permitted):");
-            Console.Write("> ");
-            var toot = Console.ReadLine();
-            if (toot == null)
+            string filePath = "";
+            if(RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                Console.WriteLine("No toot entered. Exiting.");
+                filePath = "/private/tmp/";
+            }
+            else if(RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                filePath = @"C:\Temp\";
+            }
+            else
+            {
+                filePath = "/tmp/";
+            }
+
+            return $"{filePath}toot-{guid}.txt";
+        }
+
+        private void RunEditor(string exePath, string filePath)
+        {
+            Process process = new Process();
+            process.StartInfo.FileName = exePath;
+            process.StartInfo.Arguments = filePath;
+            process.StartInfo.UseShellExecute = true;
+            process.Start();
+            process.WaitForExit();
+        }
+
+        private string? ReadFileContent(string filePath)
+        {
+            return File.ReadAllText(filePath);
+        }
+
+        private void CleanUpFile(string filePath)
+        {
+            try
+            {
+                if(File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
+            }
+            catch(IOException exc)
+            {
+                Console.WriteLine($"Failed to delete '{filePath}' with error: {exc.Message}");
+            }
+        }
+
+        private Dictionary<string, string> CreateContentContainer(string content)
+        {
+            return new Dictionary<string, string>()
+            {
+                {"status", content}
+            };
+        }
+
+        private bool SendToot(MastoClient client, Dictionary<string, string> form)
+        {
+            var route = "statuses";
+            var resp = Task.Run(async() => await client.Call(route, HttpMethod.Post, form: form));
+            resp.Wait();
+            var content = resp.Result;
+            return true;
+        }
+
+        internal void PostToot(MastoClient client, string? replyId = null)
+        {
+            var editor = Environment.GetEnvironmentVariable("EDITOR");
+            if(editor is null)
+            {
+                Console.WriteLine("No value set for $EDITOR. Please set the environment variable.");
                 return;
             }
-            Console.WriteLine($"Would post: {toot}");
+
+            var guid = Guid.NewGuid();
+            var filePath = this.MakeTempFileName(guid);
+
+            Console.WriteLine($"Opening: {filePath}...");
+            Thread.Sleep(1000);
+            this.RunEditor(editor, filePath);
+
+            var content = this.ReadFileContent(filePath);
+            if(content is null || content == "")
+            {
+                Console.WriteLine("Skipping toot since the content was empty");
+                return;
+            }
+            var form = this.CreateContentContainer(content);
+
+            Console.WriteLine("Posting...");
+            Thread.Sleep(500);
+
+            var postSuccessful = this.SendToot(client, form);
+            this.CleanUpFile(filePath);
         }
 
         internal void PrintToot(Toot toot)
