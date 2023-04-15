@@ -177,12 +177,19 @@ namespace TootSharp
             }
         }
 
-        private Dictionary<string, string> CreateContentContainer(string content)
+        private Dictionary<string, string> CreateContentContainer(string content, string? replyId = null)
         {
-            return new Dictionary<string, string>()
+            var form = new Dictionary<string, string>()
             {
                 {"status", content}
             };
+
+            if(replyId is not null)
+            {
+                form["in_reply_to_id"] = replyId;
+            }
+
+            return form;
         }
 
         private bool SendToot(MastoClient client, Dictionary<string, string> form)
@@ -192,6 +199,15 @@ namespace TootSharp
             resp.Wait();
             var content = resp.Result;
             return true;
+        }
+
+        private Toot? GetMastoId(string friendlyId)
+        {
+            int idConv;
+            var success = int.TryParse(friendlyId, out idConv);
+
+            var toot = this._toots.Find(t => t.InternalID == idConv);
+            return toot;
         }
 
         internal void PostToot(MastoClient client, string? replyId = null)
@@ -216,7 +232,19 @@ namespace TootSharp
                 Console.WriteLine("Skipping toot since the content was empty");
                 return;
             }
-            var form = this.CreateContentContainer(content);
+
+            string? mastoId = null;
+            if(replyId is not null)
+            {
+                var toot = this.GetMastoId(replyId);
+                if(toot is null)
+                {
+                    Console.WriteLine($"No toot found with ID: {replyId}");
+                    return;
+                }
+                mastoId = toot.Id;
+            }
+            var form = this.CreateContentContainer(content, mastoId);
 
             Console.WriteLine("Posting...");
             Thread.Sleep(500);
@@ -593,18 +621,11 @@ namespace TootSharp
             {
                 endpoint = "favourite";
             }
-            int idConv;
-            var success = int.TryParse(id, out idConv);
-            if(!success)
-            {
-                Console.WriteLine($"Invalid ID: {id}");
-                return;
-            }
 
-            var toot = this._toots.Find(t => t.InternalID == idConv);
+            var toot = this.GetMastoId(id);
             if(toot is null)
             {
-                Console.WriteLine($"No toot found with ID: {idConv}");
+                Console.WriteLine($"No toot found with ID: {id}");
                 return;
             }
 
@@ -641,18 +662,11 @@ namespace TootSharp
             {
                 endpoint = "reblog";
             }
-            int idConv;
-            var success = int.TryParse(id, out idConv);
-            if(!success)
-            {
-                Console.WriteLine($"Invalid ID: {id}");
-                return;
-            }
 
-            var toot = this._toots.Find(t => t.InternalID == idConv);
+            var toot = this.GetMastoId(id);
             if(toot is null)
             {
-                Console.WriteLine($"No toot found with ID: {idConv}");
+                Console.WriteLine($"No toot found with ID: {id}");
                 return;
             }
 
@@ -689,18 +703,11 @@ namespace TootSharp
             {
                 endpoint = "bookmark";
             }
-            int idConv;
-            var success = int.TryParse(id, out idConv);
-            if(!success)
-            {
-                Console.WriteLine($"Invalid ID: {id}");
-                return;
-            }
 
-            var toot = this._toots.Find(t => t.InternalID == idConv);
+            var toot = this.GetMastoId(id);
             if(toot is null)
             {
-                Console.WriteLine($"No toot found with ID: {idConv}");
+                Console.WriteLine($"No toot found with ID: {id}");
                 return;
             }
             string? tootId = toot.Id;
@@ -727,13 +734,10 @@ namespace TootSharp
 
         internal void DeleteToot(MastoClient client, string id)
         {
-            int idConv;
-            var success = int.TryParse(id, out idConv);
-
-            var toot = this._toots.Find(t => t.InternalID == idConv);
+            var toot = this.GetMastoId(id);
             if(toot is null)
             {
-                Console.WriteLine($"No toot found with ID: {idConv}");
+                Console.WriteLine($"No toot found with ID: {id}");
                 return;
             }
 
@@ -875,7 +879,15 @@ namespace TootSharp
                 }
                 else if(command.StartsWith("reply"))
                 {
-                    Console.WriteLine("Replying to a toot.");
+                    var id = this.ProcessCommandData(command);
+                    if(id is not null)
+                    {
+                        this.PostToot(client, id);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid ID.");
+                    }
                 }
                 else if(command.StartsWith("fav"))
                 {
