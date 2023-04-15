@@ -177,7 +177,7 @@ namespace TootSharp
             }
         }
 
-        private Dictionary<string, string> CreateContentContainer(string content, string? replyId = null)
+        private Dictionary<string, string> CreateContentContainer(string content, string? replyId = null, string? cw = null)
         {
             var form = new Dictionary<string, string>()
             {
@@ -187,6 +187,10 @@ namespace TootSharp
             if(replyId is not null)
             {
                 form["in_reply_to_id"] = replyId;
+            }
+            if(cw is not null)
+            {
+                form["spoiler_text"] = cw;
             }
 
             return form;
@@ -210,7 +214,21 @@ namespace TootSharp
             return toot;
         }
 
-        internal void PostToot(MastoClient client, string? replyId = null)
+        private void PostCW(MastoClient client)
+        {
+            Console.WriteLine("Enter your CW text:");
+            Console.Write("> ");
+            var cwContent = Console.ReadLine();
+            if(cwContent is null || cwContent == "")
+            {
+                Console.WriteLine("No CW given...");
+                return;
+            }
+
+            this.PostToot(client, cw: cwContent.Trim());
+        }
+
+        internal void PostToot(MastoClient client, string? replyId = null, string? cw = null)
         {
             var editor = Environment.GetEnvironmentVariable("EDITOR");
             if(editor is null)
@@ -244,7 +262,7 @@ namespace TootSharp
                 }
                 mastoId = toot.Id;
             }
-            var form = this.CreateContentContainer(content, mastoId);
+            var form = this.CreateContentContainer(content, mastoId, cw);
 
             Console.WriteLine("Posting...");
             Thread.Sleep(500);
@@ -860,6 +878,10 @@ namespace TootSharp
                 else if(command == "toot")
                 {
                     this.PostToot(client);
+                }
+                else if(command == "cw")
+                {
+                    this.PostCW(client);
                 }
                 else if(command.StartsWith("delete"))
                 {
