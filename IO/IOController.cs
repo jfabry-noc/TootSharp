@@ -11,7 +11,7 @@ namespace TootSharp
     public class IOController
     {
         private List<Toot> _toots { get; set; }
-        private const int _maxToots = 100;
+        private const int _maxToots = 500;
         private const int _viewCount = 20;
         private int _nextTootID;
 
@@ -71,26 +71,38 @@ namespace TootSharp
         {
             if(toots is not null)
             {
+                if(singleToot is not null)
+                {
+                    if(toots is not null)
+                    {
+                        toots.Add(singleToot);
+                    }
+                    else
+                    {
+                        toots = new List<Toot>() { singleToot };
+                    }
+                }
                 toots = toots.OrderBy(t => t.CreatedAt).ToList();
                 foreach(var toot in toots)
                 {
-                    if(!this._toots.Where(t => t.Id == toot.Id).Any())
+                    var matching = this._toots.Where(t => t.Id == toot.Id);
+                    if(!matching.Any())
                     {
                         toot.InternalID = this._nextTootID;
                         this._nextTootID++;
                         toot.ViewSource.Add(source);
                         this._toots.Add(toot);
                     }
-                }
-            }
-
-            if(singleToot is not null)
-            {
-                if(!this._toots.Where(t => t.Id == singleToot.Id).Any())
-                {
-                    singleToot.InternalID = this._nextTootID;
-                    this._nextTootID++;
-                    this._toots.Add(singleToot);
+                    else
+                    {
+                        foreach(var item in matching)
+                        {
+                            if(!item.ViewSource.Contains(source))
+                            {
+                                item.ViewSource.Add(source);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -138,6 +150,18 @@ namespace TootSharp
             var processed = client.ProcessResults<Notification>(resp);
             // TODO: Figure out how we want to print notificatins. May need to do conditionals
             // based around the Type property?
+            if(processed is not null)
+            {
+                processed = processed.OrderBy(t => t.CreatedAt).ToList();
+                foreach(var note in processed)
+                {
+                    //Console.WriteLine($"{note.Type}: {note.Account} - {note.Status} - {note.CreatedAt}");
+                    if(note.Type == "mention")
+                    {
+
+                    }
+                }
+            }
         }
 
         private string MakeTempFileName(Guid guid)
@@ -586,7 +610,7 @@ namespace TootSharp
             return result;
         }
 
-        internal void PrintToots(List<Toot> toots, string? source)
+        internal void PrintToots(List<Toot> toots, string? source, int? limit = null)
         {
             var currentList = new List<Toot>();
             toots = toots.OrderByDescending(t => t.CreatedAt).ToList();
@@ -609,9 +633,16 @@ namespace TootSharp
                 }
             }
 
+            var counter = 0;
             for(int i = currentList.Count - 1; i >= 0; i--)
             {
+                counter++;
                 this.PrintToot(currentList[i]);
+
+                if(counter == limit)
+                {
+                    break;
+                }
             }
         }
 
@@ -832,7 +863,7 @@ namespace TootSharp
             }
         }
 
-        internal void GetUserToots(MastoClient client, string id)
+        internal void GetUserToots(MastoClient client, string id, string webFinger)
         {
             var path = $"accounts/{id}/statuses";
             long idConv;
@@ -847,7 +878,8 @@ namespace TootSharp
             var processed = client.ProcessResults<Toot>(resp);
             if(processed is not null)
             {
-                this.PrintStandaloneToots(processed);
+                this.ManageTootList(webFinger, processed, null);
+                this.PrintToots(this._toots, webFinger);
             }
         }
 
@@ -864,21 +896,31 @@ namespace TootSharp
             {
                 tootId = toot.Reblog.Id;
             }
+            if(tootId is null)
+            {
+                Console.WriteLine($"Invalid ID: {tootId}");
+                return;
+            }
             var path = $"statuses/{tootId}/context";
 
             var resp = Task.Run(async() => await client.Call(path, HttpMethod.Get));
             var processed = client.ProcessResult<TootContext>(resp);
             if(processed is not null)
             {
+                var threadCount = 1;
                 if(processed.Ancestors is not null)
                 {
-                    this.PrintStandaloneToots(processed.Ancestors);
+                    this.ManageTootList(tootId, processed.Ancestors, null);
+                    threadCount += processed.Ancestors.Count;
                 }
-                this.PrintStandaloneToots(new List<Toot>(){toot});
+                this.ManageTootList(tootId, null, toot);
                 if(processed.Descendants is not null)
                 {
-                    this.PrintStandaloneToots(processed.Descendants);
+                    this.ManageTootList(tootId, processed.Descendants, null);
+                    threadCount += processed.Descendants.Count;
                 }
+
+                this.PrintToots(this._toots, tootId, threadCount);
             }
         }
 
@@ -953,7 +995,7 @@ namespace TootSharp
                         var id = this.LookupUser(client, webfinger);
                         if(id is not null)
                         {
-                            this.GetUserToots(client, id);
+                            this.GetUserToots(client, id, webfinger);
                         }
                     }
                     else
