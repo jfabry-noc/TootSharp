@@ -851,6 +851,37 @@ namespace TootSharp
             }
         }
 
+        internal void GetTootThread(MastoClient client, string id)
+        {
+            var toot = this.GetMastoId(id);
+            if(toot is null)
+            {
+                Console.WriteLine($"No toot found with ID: {id}");
+                return;
+            }
+            string? tootId = toot.Id;
+            if(toot.Reblog is not null)
+            {
+                tootId = toot.Reblog.Id;
+            }
+            var path = $"statuses/{tootId}/context";
+
+            var resp = Task.Run(async() => await client.Call(path, HttpMethod.Get));
+            var processed = client.ProcessResult<TootContext>(resp);
+            if(processed is not null)
+            {
+                if(processed.Ancestors is not null)
+                {
+                    this.PrintStandaloneToots(processed.Ancestors);
+                }
+                this.PrintStandaloneToots(new List<Toot>(){toot});
+                if(processed.Descendants is not null)
+                {
+                    this.PrintStandaloneToots(processed.Descendants);
+                }
+            }
+        }
+
         internal string? LookupUser(MastoClient client, string webFinger, bool print = false)
         {
             var queryParams = new Dictionary<string, string>()
@@ -1036,6 +1067,18 @@ namespace TootSharp
                     if(id is not null)
                     {
                         this.BookmarkToot(client, id, true);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid ID.");
+                    }
+                }
+                else if(command.StartsWith("thread"))
+                {
+                    var id = this.ProcessCommandData(command);
+                    if(id is not null)
+                    {
+                        this.GetTootThread(client, id);
                     }
                     else
                     {
