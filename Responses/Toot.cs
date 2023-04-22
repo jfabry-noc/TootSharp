@@ -72,6 +72,20 @@ namespace TootSharp
 
         [JsonPropertyName("roles")]
         public List<object>? Roles { get; set; }
+
+        public override string ToString()
+        {
+            var baseValue = base.ToString();
+            if(Acct is not null)
+            {
+                return $"@{Acct}";
+            }
+            else if(baseValue is not null)
+            {
+                return baseValue;
+            }
+            return "";
+        }
     }
 
     public class Application

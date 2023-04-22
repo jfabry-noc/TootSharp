@@ -11,7 +11,7 @@ namespace TootSharp
     public class IOController
     {
         private List<Toot> _toots { get; set; }
-        private const int _maxToots = 500;
+        private const int _maxToots = 1000;
         private const int _viewCount = 20;
         private int _nextTootID;
 
@@ -69,38 +69,52 @@ namespace TootSharp
 
         private void ManageTootList(string source, List<Toot>? toots, Toot? singleToot)
         {
-            if(toots is not null)
+            if(toots is null && singleToot is null)
             {
-                if(singleToot is not null)
+                return;
+            }
+            if(toots is null && singleToot is not null)
+            {
+                toots = new List<Toot>(){ singleToot };
+            }
+            if(toots is not null && singleToot is not null)
+            {
+                toots.Add(singleToot);
+            }
+            if(toots is null)
+            {
+                return;
+            }
+
+            if(singleToot is not null)
+            {
+                if(toots is not null)
                 {
-                    if(toots is not null)
-                    {
-                        toots.Add(singleToot);
-                    }
-                    else
-                    {
-                        toots = new List<Toot>() { singleToot };
-                    }
+                    toots.Add(singleToot);
                 }
-                toots = toots.OrderBy(t => t.CreatedAt).ToList();
-                foreach(var toot in toots)
+                else
                 {
-                    var matching = this._toots.Where(t => t.Id == toot.Id);
-                    if(!matching.Any())
+                    toots = new List<Toot>() { singleToot };
+                }
+            }
+            toots = toots.OrderBy(t => t.CreatedAt).ToList();
+            foreach(var toot in toots)
+            {
+                var matching = this._toots.Where(t => t.Id == toot.Id);
+                if(!matching.Any())
+                {
+                    toot.InternalID = this._nextTootID;
+                    this._nextTootID++;
+                    toot.ViewSource.Add(source);
+                    this._toots.Add(toot);
+                }
+                else
+                {
+                    foreach(var item in matching)
                     {
-                        toot.InternalID = this._nextTootID;
-                        this._nextTootID++;
-                        toot.ViewSource.Add(source);
-                        this._toots.Add(toot);
-                    }
-                    else
-                    {
-                        foreach(var item in matching)
+                        if(!item.ViewSource.Contains(source))
                         {
-                            if(!item.ViewSource.Contains(source))
-                            {
-                                item.ViewSource.Add(source);
-                            }
+                            item.ViewSource.Add(source);
                         }
                     }
                 }
@@ -155,10 +169,29 @@ namespace TootSharp
                 processed = processed.OrderBy(t => t.CreatedAt).ToList();
                 foreach(var note in processed)
                 {
-                    //Console.WriteLine($"{note.Type}: {note.Account} - {note.Status} - {note.CreatedAt}");
+                    //Console.WriteLine($"####### {note.Type}: {note.Account} - {note.Status} - {note.CreatedAt}");
+
                     if(note.Type == "mention")
                     {
-
+                        Console.WriteLine($"####### {note.Type}: {note.Account} - {note.Status} - {note.CreatedAt}");
+                        this.ManageTootList("note", null, note.Status);
+                        this.PrintToots(this._toots, "note", 1);
+                    }
+                    else if(note.Type == "follow")
+                    {
+                        /*
+                        if(note.Account is null)
+                        {
+                            Console.WriteLine("\n--++ New Follow From Unknown Account ++--");
+                            continue;
+                        }
+                        Console.WriteLine($"\n--++ New Follow: {note.Account.DisplayName} - @{note.Account.Acct} ++--");
+                        Console.WriteLine($"  Followed At: {note.CreatedAt}");
+                        */
+                    }
+                    else if(note.Type == "poll")
+                    {
+                        //Console.WriteLine("\nPoll ended. I need to add poll support still.");
                     }
                 }
             }
@@ -627,22 +660,25 @@ namespace TootSharp
                 {
                     currentList.Add(toot);
                 }
+
+                if(limit is not null && currentList.Count == limit)
+                {
+                    break;
+                }
                 if (currentList.Count == IOController._viewCount)
                 {
                     break;
                 }
             }
 
-            var counter = 0;
+            if(currentList.Count == 0)
+            {
+                Console.WriteLine($"No toots found for source: {source}");
+            }
+
             for(int i = currentList.Count - 1; i >= 0; i--)
             {
-                counter++;
                 this.PrintToot(currentList[i]);
-
-                if(counter == limit)
-                {
-                    break;
-                }
             }
         }
 
