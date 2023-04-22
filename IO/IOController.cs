@@ -106,17 +106,19 @@ namespace TootSharp
         internal void PrintHelp()
         {
             Console.WriteLine("Timeline Commands:");
-            Console.WriteLine("  home:      Show home timeline");
-            Console.WriteLine("  local:     Show local timeline");
-            Console.WriteLine("  federated: Show federated timeline");
-            Console.WriteLine("  me:        Show my timeline");
+            Console.WriteLine("  home:             Show home timeline");
+            Console.WriteLine("  local:            Show local timeline");
+            Console.WriteLine("  federated:        Show federated timeline");
+            Console.WriteLine("  user {webfinger}: Show my timeline");
             Console.WriteLine("\nToot Commands:");
-            Console.WriteLine("  toot:       Post a toot");
+            Console.WriteLine("  toot:            Post a toot");
+            Console.WriteLine("  cw:              Post a toot with a content warning");
             Console.WriteLine("  delete {id}:     Delete a toot");
             Console.WriteLine("  reply {id}:      Reply to a toot");
             Console.WriteLine("  fav {id}:        Favorite a toot");
             Console.WriteLine("  unfav {id}:      Unfavorite a toot");
             Console.WriteLine("  boost {id}:      Boost a toot");
+            Console.WriteLine("  unboost {id}     Unboost a toot");
             Console.WriteLine("  bookmark {id}:   Bookmark a toot");
             Console.WriteLine("  unbookmark {id}: Unbookmark a toot");
             Console.WriteLine("\nUser Commands:");
@@ -125,7 +127,17 @@ namespace TootSharp
             Console.WriteLine("  bio {webfinger}: Show a user's bio");
             Console.WriteLine("\nOther Commands:");
             Console.WriteLine("  note: Show notifications");
+            Console.WriteLine("  help: Print this help message");
             Console.WriteLine("  quit: Quit");
+        }
+
+        private void GetNotifications(MastoClient client)
+        {
+            var route = "notifications";
+            var resp = Task.Run(async() => await client.Call(route, HttpMethod.Get));
+            var processed = client.ProcessResults<Notification>(resp);
+            // TODO: Figure out how we want to print notificatins. May need to do conditionals
+            // based around the Type property?
         }
 
         private string MakeTempFileName(Guid guid)
@@ -159,7 +171,15 @@ namespace TootSharp
 
         private string? ReadFileContent(string filePath)
         {
-            return File.ReadAllText(filePath);
+            if(File.Exists(filePath))
+            {
+                return File.ReadAllText(filePath);
+            }
+            else
+            {
+                Console.WriteLine($"No file found at: {filePath}");
+                return null;
+            }
         }
 
         private void CleanUpFile(string filePath)
@@ -200,7 +220,6 @@ namespace TootSharp
         {
             var route = "statuses";
             var resp = Task.Run(async() => await client.Call(route, HttpMethod.Post, form: form));
-            resp.Wait();
             var content = resp.Result;
             return true;
         }
@@ -596,6 +615,15 @@ namespace TootSharp
             }
         }
 
+        internal void PrintStandaloneToots(List<Toot> toots)
+        {
+            toots = toots.OrderBy(t => t.CreatedAt).ToList();
+            foreach(var toot in toots)
+            {
+                this.PrintToot(toot);
+            }
+        }
+
         internal void PrintTimeline(MastoClient client, string timeline)
         {
             string timelineRoute = "timelines/";
@@ -804,6 +832,25 @@ namespace TootSharp
             }
         }
 
+        internal void GetUserToots(MastoClient client, string id)
+        {
+            var path = $"accounts/{id}/statuses";
+            long idConv;
+            var success = long.TryParse(id, out idConv);
+            if(!success)
+            {
+                Console.WriteLine($"Invalid ID: {id}");
+                return;
+            }
+
+            var resp = Task.Run(async() => await client.Call(path, HttpMethod.Get));
+            var processed = client.ProcessResults<Toot>(resp);
+            if(processed is not null)
+            {
+                this.PrintStandaloneToots(processed);
+            }
+        }
+
         internal string? LookupUser(MastoClient client, string webFinger, bool print = false)
         {
             var queryParams = new Dictionary<string, string>()
@@ -867,9 +914,21 @@ namespace TootSharp
                 {
                     this.PrintTimeline(client, "federated");
                 }
-                else if(command == "me")
+                else if(command.StartsWith("user"))
                 {
-                    Console.WriteLine("Printing my timeline.");
+                    var webfinger = this.ProcessCommandData(command);
+                    if(webfinger is not null)
+                    {
+                        var id = this.LookupUser(client, webfinger);
+                        if(id is not null)
+                        {
+                            this.GetUserToots(client, id);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid WebFinger address.");
+                    }
                 }
                 else if(command == "home")
                 {
@@ -897,7 +956,7 @@ namespace TootSharp
                 }
                 else if(command == "note")
                 {
-                    Console.WriteLine("Printing notifications.");
+                    this.GetNotifications(client);
                 }
                 else if(command.StartsWith("reply"))
                 {
@@ -982,10 +1041,6 @@ namespace TootSharp
                     {
                         Console.WriteLine("Invalid ID.");
                     }
-                }
-                else if(command.StartsWith("search"))
-                {
-                    Console.WriteLine("Search for a toot.");
                 }
                 else if(command.StartsWith("follow"))
                 {
