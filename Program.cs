@@ -10,7 +10,7 @@
         static async Task Main(string[] args)
         {
             var io = new IOController();
-            io.PrintGreeting();
+            Printer.PrintGreeting();
 
             var configController = new ConfigController();
 
