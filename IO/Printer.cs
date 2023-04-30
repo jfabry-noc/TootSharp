@@ -400,5 +400,29 @@ namespace TootSharp
             }
             return null;
         }
+
+        internal static void PrintFollow(Notification note)
+        {
+            var followContent = "--== New follow from: ";
+            if(note.Account is not null)
+            {
+                if(note.Account.DisplayName is not null)
+                {
+                    followContent += $"{note.Account.DisplayName}";
+                }
+                if(note.Account.Acct is not null)
+                {
+                    followContent += $": @{note.Account.Acct}";
+                }
+            }
+            followContent += " ==--";
+
+            if(note.CreatedAt is not null)
+            {
+                followContent += $"\n  Followed at: {note.CreatedAt}";
+            }
+
+            Console.WriteLine(followContent);
+        }
     }
 }

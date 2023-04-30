@@ -138,15 +138,7 @@ namespace TootSharp
                     }
                     else if(note.Type == "follow")
                     {
-                        /*
-                        if(note.Account is null)
-                        {
-                            Console.WriteLine("\n--++ New Follow From Unknown Account ++--");
-                            continue;
-                        }
-                        Console.WriteLine($"\n--++ New Follow: {note.Account.DisplayName} - @{note.Account.Acct} ++--");
-                        Console.WriteLine($"  Followed At: {note.CreatedAt}");
-                        */
+                        Printer.PrintFollow(note);
                     }
                 }
             }
