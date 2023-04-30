@@ -131,9 +131,8 @@ namespace TootSharp
                 {
                     //Console.WriteLine($"####### {note.Type}: {note.Account} - {note.Status} - {note.CreatedAt}");
 
-                    if(note.Type == "mention")
+                    if(note.Type == "mention" || note.Type == "poll")
                     {
-                        Console.WriteLine($"####### {note.Type}: {note.Account} - {note.Status} - {note.CreatedAt}");
                         this.ManageTootList("note", null, note.Status);
                         this.PrintToots(this._toots, "note", 1);
                     }
@@ -148,10 +147,6 @@ namespace TootSharp
                         Console.WriteLine($"\n--++ New Follow: {note.Account.DisplayName} - @{note.Account.Acct} ++--");
                         Console.WriteLine($"  Followed At: {note.CreatedAt}");
                         */
-                    }
-                    else if(note.Type == "poll")
-                    {
-                        //Console.WriteLine("\nPoll ended. I need to add poll support still.");
                     }
                 }
             }

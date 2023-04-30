@@ -51,6 +51,10 @@ namespace TootSharp
                 {
                     reblogContentLine += Printer.ProcessTootContent(toot.Reblog.Content);
                 }
+                if(toot.Reblog.Poll is not null)
+                {
+                    reblogContentLine += Printer.ProcessPoll(toot.Reblog.Poll);
+                }
 
                 if(toot.Reblog.MediaAttachments is not null)
                 {
@@ -102,6 +106,10 @@ namespace TootSharp
             if(toot.Content is not null)
             {
                 contentLine += Printer.ProcessTootContent(toot.Content);
+            }
+            if(toot.Poll is not null)
+            {
+                contentLine += Printer.ProcessPoll(toot.Poll);
             }
             if(toot.MediaAttachments is not null)
             {
@@ -163,6 +171,59 @@ namespace TootSharp
                 }
                 Console.WriteLine(metaLine);
             }
+        }
+
+        private static string PollLine(int optionVotes, int totalVotes)
+        {
+            var percent = (double)optionVotes / (double)totalVotes * 100;
+            percent = Math.Round(percent, 2);
+            var countExact = percent / 5;
+            var countRounded = Math.Round(countExact);
+            string pollLine = "";
+
+            for(var i = 0; i < countRounded; i++)
+            {
+                pollLine += "#";
+            }
+
+            pollLine += $" {optionVotes} votes: ({percent}%)";
+
+            return pollLine;
+        }
+
+        private static string ProcessPoll(Poll poll)
+        {
+            string pollContent = "\n  Poll: ";
+            var expired = poll.Expired ?? true;
+            if(expired)
+            {
+                pollContent += "Complete";
+            }
+            else
+            {
+                pollContent += "Open";
+            }
+
+            var pollVotes = 0;
+            if(poll.VotesCount is not null)
+            {
+                pollVotes = (int)poll.VotesCount;
+                pollContent += $"\n  Votes: {poll.VotesCount}";
+            }
+
+            if(poll.Options is not null)
+            {
+                foreach(var option in poll.Options)
+                {
+                    pollContent += $"\n    -> {option.Title}";
+                    if(option.VotesCount is not null)
+                    {
+                        pollContent += $"\n    {Printer.PollLine((int)option.VotesCount, pollVotes)}";
+                    }
+                }
+            }
+
+            return pollContent;
         }
 
         private static string ProcessTootContent(string content)

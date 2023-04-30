@@ -11,39 +11,6 @@ namespace TootSharp
         public int? VotesCount { get; set; }
     }
 
-    public class Poll
-    {
-        [JsonPropertyName("id")]
-        public string? Id { get; set; }
-
-        [JsonPropertyName("expires_at")]
-        public DateTime? ExpiresAt { get; set; }
-
-        [JsonPropertyName("expired")]
-        public bool? Expired { get; set; }
-
-        [JsonPropertyName("multiple")]
-        public bool? Multiple { get; set; }
-
-        [JsonPropertyName("votes_count")]
-        public int? VotesCount { get; set; }
-
-        [JsonPropertyName("voters_count")]
-        public int? VotersCount { get; set; }
-
-        [JsonPropertyName("voted")]
-        public bool? Voted { get; set; }
-
-        [JsonPropertyName("own_votes")]
-        public List<int?>? OwnVotes { get; set; }
-
-        [JsonPropertyName("options")]
-        public List<Option>? Options { get; set; }
-
-        [JsonPropertyName("emojis")]
-        public List<object>? Emojis { get; set; }
-    }
-
     public class Notification
     {
         [JsonPropertyName("id")]

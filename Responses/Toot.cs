@@ -238,6 +238,39 @@ namespace TootSharp
         public Small? Small { get; set; }
     }
 
+    public class Poll
+    {
+        [JsonPropertyName("id")]
+        public string? Id { get; set; }
+
+        [JsonPropertyName("expires_at")]
+        public DateTime? ExpiresAt { get; set; }
+
+        [JsonPropertyName("expired")]
+        public bool? Expired { get; set; }
+
+        [JsonPropertyName("multiple")]
+        public bool? Multiple { get; set; }
+
+        [JsonPropertyName("votes_count")]
+        public int? VotesCount { get; set; }
+
+        [JsonPropertyName("voters_count")]
+        public int? VotersCount { get; set; }
+
+        [JsonPropertyName("voted")]
+        public bool? Voted { get; set; }
+
+        [JsonPropertyName("own_votes")]
+        public List<int?>? OwnVotes { get; set; }
+
+        [JsonPropertyName("options")]
+        public List<Option>? Options { get; set; }
+
+        [JsonPropertyName("emojis")]
+        public List<object>? Emojis { get; set; }
+    }
+
     public class Original
     {
         [JsonPropertyName("width")]
@@ -346,7 +379,7 @@ namespace TootSharp
         public Card? Card { get; set; }
 
         [JsonPropertyName("poll")]
-        public object? Poll { get; set; }
+        public Poll? Poll { get; set; }
     }
 
     public class Toot
@@ -447,7 +480,7 @@ namespace TootSharp
         public Card? Card { get; set; }
 
         [JsonPropertyName("poll")]
-        public object? Poll { get; set; }
+        public Poll? Poll { get; set; }
 
         [JsonPropertyName("pinned")]
         public bool? Pinned { get; set; }
