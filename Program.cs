@@ -2,10 +2,10 @@
 {
     internal class Program
     {
-        public const string Redirect = "urn:ietf:wg:oauth:2.0:oob";
-        public const string Scopes = "read write follow";
-        public const string AppName = "TootSharp";
-        public const string Website = "https://github.com/jfabry-noc/TootSharp";
+        private const string Redirect = "urn:ietf:wg:oauth:2.0:oob";
+        private const string Scopes = "read write follow";
+        private const string AppName = "TootSharp";
+        private const string Website = "https://github.com/jfabry-noc/TootSharp";
 
         static async Task Main(string[] args)
         {

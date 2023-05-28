@@ -213,13 +213,15 @@ namespace TootSharp
 
             if(poll.Options is not null)
             {
+                var indexer = 1;
                 foreach(var option in poll.Options)
                 {
-                    pollContent += $"\n    -> {option.Title}";
+                    pollContent += $"\n    {indexer} -> {option.Title}";
                     if(option.VotesCount is not null)
                     {
                         pollContent += $"\n    {Printer.PollLine((int)option.VotesCount, pollVotes)}";
                     }
+                    indexer++;
                 }
             }
 

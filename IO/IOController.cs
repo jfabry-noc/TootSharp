@@ -122,14 +122,12 @@ namespace TootSharp
             var route = "notifications";
             var resp = Task.Run(async() => await client.Call(route, HttpMethod.Get));
             var processed = client.ProcessResults<Notification>(resp);
-            // TODO: Figure out how we want to print notificatins. May need to do conditionals
-            // based around the Type property?
+            // TODO: Figure out what other notification types need to be handled.
             if(processed is not null)
             {
                 processed = processed.OrderBy(t => t.CreatedAt).ToList();
                 foreach(var note in processed)
                 {
-                    //Console.WriteLine($"####### {note.Type}: {note.Account} - {note.Status} - {note.CreatedAt}");
 
                     if(note.Type == "mention" || note.Type == "poll")
                     {
@@ -220,9 +218,8 @@ namespace TootSharp
             return form;
         }
 
-        private bool SendToot(MastoClient client, Dictionary<string, string> form)
+        private bool SendToot(MastoClient client, Dictionary<string, string> form, string route = "statuses")
         {
-            var route = "statuses";
             var resp = Task.Run(async() => await client.Call(route, HttpMethod.Post, form: form));
             var content = resp.Result;
             return true;
@@ -330,15 +327,6 @@ namespace TootSharp
             for(int i = currentList.Count - 1; i >= 0; i--)
             {
                 Printer.PrintToot(currentList[i]);
-            }
-        }
-
-        internal void PrintStandaloneToots(List<Toot> toots)
-        {
-            toots = toots.OrderBy(t => t.CreatedAt).ToList();
-            foreach(var toot in toots)
-            {
-                Printer.PrintToot(toot);
             }
         }
 
@@ -496,6 +484,145 @@ namespace TootSharp
             }
         }
 
+        private Poll? ValidatePoll(Toot toot)
+        {
+            Poll? poll = null;
+            if(toot.Poll is not null)
+            {
+                poll = toot.Poll;
+            }
+            else if(toot.Reblog is not null && toot.Reblog.Poll is not null)
+            {
+                poll = toot.Reblog.Poll;
+            }
+            if(poll is null)
+            {
+                Console.WriteLine($"No poll found associated with too: {toot.Id}");
+                return poll;
+            }
+            if(poll.Expired is true)
+            {
+                Console.WriteLine("That poll has expired. No further voting permitted.");
+                return null;
+            }
+            if(poll.Voted is true)
+            {
+                Console.WriteLine("You have already voted in this poll.");
+                return null;
+            }
+            if(poll.Options is null || poll.Options.Count < 1)
+            {
+                Console.WriteLine("Poll has no options!");
+                return null;
+            }
+
+            return poll;
+        }
+
+        private List<int>? ValidateVote(int ceiling, string? votes, bool multiple = false)
+        {
+            if(votes is null)
+            {
+                Console.WriteLine("Ignoring since no vote was supplied.");
+                return null;
+            }
+
+            var voteItems = votes.Split(",");
+            var results = new List<int>();
+            foreach(var singleVote in voteItems)
+            {
+                bool parseSuccess = Int32.TryParse(singleVote.Trim(), out int voteIndex);
+                if(!parseSuccess)
+                {
+                    Console.WriteLine($"Ignoring since {singleVote} is not a valid integer.");
+                    continue;
+                }
+                if(voteIndex > ceiling)
+                {
+                    Console.WriteLine($"Ignoring since {voteIndex} is larger than the maximum of {ceiling}");
+                    continue;
+                }
+                if(voteIndex < 1)
+                {
+                    Console.WriteLine("Ignoring since 1 is the minimum vote.");
+                    continue;
+                }
+                results.Add(voteIndex-1);
+            }
+
+            if(multiple && results.Count > 1)
+            {
+                Console.WriteLine($"Specified {results.Count} items when only one is permitted. Using first option.");
+                results = results.GetRange(0, 1);
+            }
+            return results;
+        }
+
+        internal void SendPoll(MastoClient client, List<int> votes, string id)
+        {
+            List<string> formatted = new List<string>();
+            foreach(var vote in votes)
+            {
+                formatted.Add(vote.ToString());
+            }
+            var endpoint = $"polls/{id}";
+            var form = new Dictionary<string, List<string>>
+            {
+                { "choices", formatted },
+            };
+            // TODO: Figure out how to send this since everything is expecting
+            // dictionaries with <string, string> rather than <string, List<string>>.
+            //var success = this.SendToot(client, form, endpoint);
+        }
+
+        internal void VotePoll(MastoClient client, string id)
+        {
+            var toot = this.GetMastoId(id);
+            if(toot is null)
+            {
+                Console.WriteLine($"No toot found with ID: {id}");
+                return;
+            }
+
+            Poll? poll = this.ValidatePoll(toot);
+            if(poll is null || poll.Options is null || poll.Options.Count < 1)
+            {
+                return;
+            }
+
+            Printer.PrintToot(toot);
+
+            bool multiple = false;
+            if(poll.Multiple is not null && poll.Multiple == true)
+            {
+                Console.WriteLine($"Enter comma separated votes between 1 and {poll.Options.Count}");
+                multiple = true;
+            }
+            else
+            {
+                Console.WriteLine($"Enter vote between 1 and {poll.Options.Count}");
+            }
+            Console.Write("> ");
+            var vote = Console.ReadLine();
+            if(vote is null)
+            {
+                Console.WriteLine("Ignoring since no vote was specified.");
+            }
+            var voteIndices = this.ValidateVote(poll.Options.Count, vote, multiple);
+            if(voteIndices is null)
+            {
+                Console.WriteLine("Aborting vote since no votes were specified.");
+                return;
+            }
+
+            // TODO: Actually make the POST.
+            // https://docs.joinmastodon.org/methods/polls/#vote
+            // Probably need to add a new method to the MastoClient class.
+            // Also need to check if polls allow for multiple votes and add
+            // support for that...
+            // timeline_poll.json has an example as the first item.
+        }
+
         internal void DeleteToot(MastoClient client, string id)
         {
             var toot = this.GetMastoId(id);
@@ -516,7 +643,7 @@ namespace TootSharp
             this._toots.Remove(toot);
         }
 
-        internal void FollowUser(MastoClient client, string id, string webFinger, bool unfollow= false)
+        internal void FollowUser(MastoClient client, string id, string webFinger, bool unfollow = false)
         {
             string endpoint;
             if(unfollow)
@@ -640,7 +767,7 @@ namespace TootSharp
             return result;
         }
 
-        public void MainLoop(MastoClient client)
+        internal void MainLoop(MastoClient client)
         {
             string? command = "";
             do
@@ -724,6 +851,18 @@ namespace TootSharp
                     if(id is not null)
                     {
                         this.PostToot(client, id);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid ID.");
+                    }
+                }
+                else if(command.StartsWith("vote"))
+                {
+                    var id = this.ProcessCommandData(command);
+                    if(id is not null)
+                    {
+                        // Vote in the poll.
                     }
                     else
                     {

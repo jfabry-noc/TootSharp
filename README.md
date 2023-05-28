@@ -15,7 +15,7 @@ This is a TUI (Terminal User Interface) client for interactive with Mastodon, li
   - Allow for re-editing of content if toot is too long.
 - Viewing home, local, and federated timelines with caching. ✅
 - Favoriting, boosting, and bookmarking content. ✅
-- Viewing notifications.
+- Viewing notifications. ✅
 - Allow for participation in polls from other users.
 
 ### Potential Goals

@@ -90,7 +90,8 @@ namespace TootSharp
             string path,
             HttpMethod? method,
             Dictionary<string, string>? queryParams = null,
-            Dictionary<string, string>? form = null
+            Dictionary<string, string>? form = null,
+            Dictionary<string, List<int>>? multiForm = null
         )
         {
             var currentUrl = $"https://{this.Instance}{this.ApiPath}{path}";
