@@ -544,7 +544,7 @@ namespace TootSharp
                 }
                 if(voteIndex < 1)
                 {
-                    Console.WriteLine("Ignoring since 1 is the minimum vote.");
+                    Console.WriteLine("Ignoring since 1 is the minimum vote index value.");
                     continue;
                 }
                 results.Add(voteIndex-1);
@@ -560,19 +560,22 @@ namespace TootSharp
 
         internal void SendPoll(MastoClient client, List<int> votes, string id)
         {
-            List<string> formatted = new List<string>();
-            foreach(var vote in votes)
-            {
-                formatted.Add(vote.ToString());
-            }
+            var parsedVotes = String.Join(",", votes);
             var endpoint = $"polls/{id}";
-            var form = new Dictionary<string, List<string>>
+            var form = new Dictionary<string, string>
             {
-                { "choices", formatted },
+                { "choices", parsedVotes },
             };
-            // TODO: Figure out how to send this since everything is expecting
-            // dictionaries with <string, string> rather than <string, List<string>>.
-            //var success = this.SendToot(client, form, endpoint);
+            var success = this.SendToot(client, form, endpoint);
+
+            if(success)
+            {
+                Console.WriteLine("Voted successfully.");
+            }
+            else
+            {
+                Console.WriteLine("Voting failed!");
+            }
         }
 
         internal void VotePoll(MastoClient client, string id)
@@ -585,7 +588,7 @@ namespace TootSharp
             }
 
             Poll? poll = this.ValidatePoll(toot);
-            if(poll is null || poll.Options is null || poll.Options.Count < 1)
+            if(poll is null || poll.Options is null || poll.Options.Count < 1 || poll.Id is null)
             {
                 return;
             }
@@ -615,12 +618,7 @@ namespace TootSharp
                 return;
             }
 
-            // TODO: Actually make the POST.
-            // https://docs.joinmastodon.org/methods/polls/#vote
-            // Probably need to add a new method to the MastoClient class.
-            // Also need to check if polls allow for multiple votes and add
-            // support for that...
-            // timeline_poll.json has an example as the first item.
+            this.SendPoll(client, voteIndices, poll.Id);
         }
 
         internal void DeleteToot(MastoClient client, string id)
@@ -862,7 +860,7 @@ namespace TootSharp
                     var id = this.ProcessCommandData(command);
                     if(id is not null)
                     {
-                        // Vote in the poll.
+                        this.VotePoll(client, id);
                     }
                     else
                     {
@@ -997,7 +995,7 @@ namespace TootSharp
                         Console.WriteLine("Invalid WebFinger address.");
                     }
                 }
-            } while (command.ToLower() != "quit");
+            } while (command.ToLower() != "quit" && command.ToLower() != "exit");
         }
     }
 }

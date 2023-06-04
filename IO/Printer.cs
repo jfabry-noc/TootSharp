@@ -6,6 +6,9 @@ namespace TootSharp
 {
     internal static class Printer
     {
+        const int RIGHTBUFFER = 2;
+        const int DEFAULTINDENT = 4;
+
         internal static void PrintToot(Toot toot)
         {
             // Process user data and time.
@@ -66,7 +69,11 @@ namespace TootSharp
                         }
                         if(attachment.Description is not null)
                         {
-                            reblogContentLine += $"\nAlt Text: {attachment.Description}";
+                            reblogContentLine += $"\nAlt Text: {attachment.Description}\n";
+                        }
+                        else
+                        {
+                            reblogContentLine += "\n";
                         }
                     }
                 }
@@ -121,7 +128,11 @@ namespace TootSharp
                     }
                     if(attachment.Description is not null)
                     {
-                        contentLine += $"\nAlt Text: {attachment.Description}";
+                        contentLine += $"\nAlt Text: {attachment.Description}\n";
+                    }
+                    else
+                    {
+                        contentLine += "\n";
                     }
                 }
             }
@@ -160,16 +171,54 @@ namespace TootSharp
                 Console.WriteLine(reblogUserLine);
                 if(reblogContentLine != "")
                 {
-                    Console.WriteLine(reblogContentLine);
+                    Printer.PrintLongLine(reblogContentLine);
                 }
                 Console.WriteLine(reblogMetaLine);
             }
             else{
                 if(contentLine != "")
                 {
-                    Console.WriteLine(contentLine);
+                    Printer.PrintLongLine(contentLine);
                 }
                 Console.WriteLine(metaLine);
+            }
+        }
+
+        private static void PrintLongLine(string content, int indent = Printer.DEFAULTINDENT)
+        {
+            var contentList = content.Split('\n');
+            var indenter = new string(' ', indent);
+
+            foreach(var line in contentList)
+            {
+                var currentLine = line;
+                do
+                {
+                    currentLine = $"{indenter}{currentLine.Trim()}";
+                    currentLine = Printer.ProcessLongLine(currentLine);
+                } while(currentLine != "");
+            }
+        }
+
+        private static string ProcessLongLine(string line)
+        {
+            var currentIndex = Console.WindowWidth - Printer.RIGHTBUFFER - 1;
+            var lineCopy = line;
+            if(line.Length - 1 > currentIndex && line.TrimStart().Contains(' '))
+            {
+                line = line.Substring(0, currentIndex + 1);
+                while(line[currentIndex] != ' ')
+                {
+                    line = line.Substring(0, currentIndex);
+                    currentIndex -= 1;
+                }
+                Console.WriteLine(line);
+                return lineCopy.Substring(currentIndex, lineCopy.Length - currentIndex);
+            }
+            else
+            {
+                Console.WriteLine(line);
+                return "";
             }
         }
 
@@ -284,11 +333,11 @@ namespace TootSharp
                 counter++;
                 if(counter == paragraphs.Length)
                 {
-                    result += "    " + paragraph.InnerHtml + "\n";
+                    result += paragraph.InnerHtml + "\n";
                 }
                 else
                 {
-                    result += "    " + paragraph.InnerHtml + "\n\n";
+                    result += paragraph.InnerHtml + "\n\n";
                 }
             }
 
